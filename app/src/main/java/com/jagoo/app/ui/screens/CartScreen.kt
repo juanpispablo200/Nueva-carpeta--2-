@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -29,11 +29,16 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,6 +71,9 @@ fun CartScreen(
     val cartItems by cartViewModel.cartItems.collectAsState()
     val couponApplied by cartViewModel.couponApplied.collectAsState()
     val cartConflict by cartViewModel.cartConflict.collectAsState()
+
+    // Estado local del campo cupón — debe estar fuera de cualquier bloque condicional
+    var couponInput by remember { mutableStateOf("") }
 
     val restaurantName = cartViewModel.currentRestaurantName ?: "Restaurante"
     val subtotal = cartViewModel.getSubtotal()
@@ -136,12 +144,9 @@ fun CartScreen(
                         verticalArrangement = Arrangement.spacedBy(JagooSpacing.sm),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        itemsIndexed(cartItems) { index, cartItem ->
-                            val isDemoDelete = index == 1
-
+                        items(cartItems) { cartItem ->
                             SwipeToDeleteItem(
                                 cartItem = cartItem,
-                                showDeleteButton = isDemoDelete,
                                 onQuantityChange = { newQty ->
                                     cartViewModel.updateQuantity(cartItem.dish.id, newQty)
                                 },
@@ -154,54 +159,119 @@ fun CartScreen(
 
                     Spacer(modifier = Modifier.height(JagooSpacing.md))
 
-                    // Caja de cupón de descuento
+                    // Caja de cupón de descuento con campo de texto
                     Card(
                         shape = CouponShape,
                         colors = CardDefaults.cardColors(containerColor = JagooCardWhite),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(54.dp)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (couponApplied) {
+                            // Estado: cupón aplicado
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = "Cupón aplicado",
+                                        tint = JagooGreen,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(JagooSpacing.sm))
+                                    Text(
+                                        text = "Cupón aplicado (−$2,00)",
+                                        fontFamily = PoppinsFontFamily,
+                                        fontSize = 13.sp,
+                                        color = JagooGreen,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .clip(PillShape)
+                                        .background(JagooGreen)
+                                        .padding(horizontal = JagooSpacing.md, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = "Aplicado ✓",
+                                        fontFamily = PoppinsFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        } else {
+                            // Estado: ingresar código
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 14.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Icon(
-                                    imageVector = if (couponApplied) Icons.Default.CheckCircle else Icons.Default.LocalOffer,
+                                    imageVector = Icons.Default.LocalOffer,
                                     contentDescription = "Cupón",
-                                    tint = if (couponApplied) JagooGreen else Color.Gray,
+                                    tint = Color.Gray,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(JagooSpacing.sm))
-                                Text(
-                                    text = if (couponApplied) "Cupón aplicado (-$2,00)" else "Cupón de descuento",
-                                    fontFamily = PoppinsFontFamily,
-                                    fontSize = 13.sp,
-                                    color = if (couponApplied) JagooGreen else Color.Gray,
-                                    fontWeight = if (couponApplied) FontWeight.Bold else FontWeight.Normal
+                                OutlinedTextField(
+                                    value = couponInput,
+                                    onValueChange = {
+                                        couponInput = it
+                                        cartViewModel.setCouponCode(it)
+                                    },
+                                    placeholder = {
+                                        Text(
+                                            text = "Código de cupón",
+                                            fontFamily = PoppinsFontFamily,
+                                            fontSize = 13.sp,
+                                            color = Color.Gray
+                                        )
+                                    },
+                                    singleLine = true,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = JagooGreen,
+                                        unfocusedBorderColor = Color.Transparent,
+                                        focusedContainerColor = Color.Transparent,
+                                        unfocusedContainerColor = Color.Transparent
+                                    ),
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        fontFamily = PoppinsFontFamily,
+                                        fontSize = 13.sp
+                                    ),
+                                    modifier = Modifier.weight(1f)
                                 )
-                            }
-
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .clip(PillShape)
-                                    .background(if (couponApplied) JagooGreen else JagooYellow)
-                                    .clickable { cartViewModel.applyCoupon() }
-                                    .padding(horizontal = JagooSpacing.md, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    text = if (couponApplied) "Aplicado" else "Aplicar",
-                                    fontFamily = PoppinsFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    color = if (couponApplied) Color.White else JagooTextPrimary
-                                )
+                                Spacer(modifier = Modifier.width(JagooSpacing.xs))
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .clip(PillShape)
+                                        .background(
+                                            if (couponInput.isNotBlank()) JagooYellow
+                                            else Color.Gray.copy(alpha = 0.2f)
+                                        )
+                                        .clickable(enabled = couponInput.isNotBlank()) {
+                                            cartViewModel.applyCoupon()
+                                        }
+                                        .padding(horizontal = JagooSpacing.md, vertical = 10.dp)
+                                ) {
+                                    Text(
+                                        text = "Aplicar",
+                                        fontFamily = PoppinsFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        color = if (couponInput.isNotBlank()) JagooTextPrimary
+                                        else Color.Gray
+                                    )
+                                }
                             }
                         }
                     }
@@ -287,7 +357,10 @@ fun CartScreen(
             Spacer(modifier = Modifier.height(JagooSpacing.md))
 
             Button(
-                onClick = onContinueClick,
+                onClick = {
+                    cartViewModel.confirmOrder()
+                    onContinueClick()
+                },
                 enabled = cartItems.isNotEmpty(),
                 shape = PillShape,
                 colors = ButtonDefaults.buttonColors(

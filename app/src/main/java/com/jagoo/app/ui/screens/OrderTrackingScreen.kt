@@ -19,7 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.TwoWheeler
 import androidx.compose.material3.Card
@@ -27,6 +27,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,6 +37,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.jagoo.app.data.ActiveOrder
+import com.jagoo.app.data.OrderStatusStep
 import com.jagoo.app.data.RestaurantData
 import com.jagoo.app.ui.components.CourierCard
 import com.jagoo.app.ui.components.JagooHeader
@@ -47,10 +51,16 @@ import com.jagoo.app.ui.theme.JagooTextPrimary
 import com.jagoo.app.ui.theme.JagooYellow
 import com.jagoo.app.ui.theme.JagooYellowBadge
 import com.jagoo.app.ui.theme.PoppinsFontFamily
+import com.jagoo.app.viewmodel.CartViewModel
 
 @Composable
-fun OrderTrackingScreen() {
-    val activeOrder = RestaurantData.sampleActiveOrder
+fun OrderTrackingScreen(
+    cartViewModel: CartViewModel
+) {
+    val activeOrder by cartViewModel.activeOrder.collectAsState()
+
+    // Usar el pedido real si existe, si no mostrar el mock de demostración
+    val order: ActiveOrder = activeOrder ?: RestaurantData.sampleActiveOrder
 
     Column(
         modifier = Modifier
@@ -87,8 +97,8 @@ fun OrderTrackingScreen() {
                             .background(JagooYellow)
                     ) {
                         AsyncImage(
-                            model = activeOrder.restaurantLogoUrl,
-                            contentDescription = activeOrder.restaurantName,
+                            model = order.restaurantLogoUrl,
+                            contentDescription = order.restaurantName,
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(CircleShape)
@@ -99,14 +109,14 @@ fun OrderTrackingScreen() {
 
                     Column {
                         Text(
-                            text = activeOrder.restaurantName,
+                            text = order.restaurantName,
                             fontFamily = PoppinsFontFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
                             color = JagooTextPrimary
                         )
                         Text(
-                            text = "Pedido #${activeOrder.id} · ${activeOrder.items.size} ítems",
+                            text = "Pedido #${order.id} · ${order.items.size} ítem${if (order.items.size != 1) "s" else ""}",
                             fontFamily = PoppinsFontFamily,
                             fontSize = 12.sp,
                             color = Color.Gray
@@ -115,13 +125,28 @@ fun OrderTrackingScreen() {
                 }
             }
 
-            // Status Section: caja de tiempo estimado + tarjeta verde "En camino"
+            // Status Section: tiempo estimado + estado actual
+            val statusLabel = when (order.statusStep) {
+                OrderStatusStep.CONFIRMED -> "Confirmado"
+                OrderStatusStep.PREPARING -> "Preparando"
+                OrderStatusStep.IN_TRANSIT -> "En camino"
+                OrderStatusStep.DELIVERED -> "Entregado"
+            }
+
+            val statusDescription = when (order.statusStep) {
+                OrderStatusStep.CONFIRMED -> "El restaurante confirmó tu pedido"
+                OrderStatusStep.PREPARING -> "El restaurante está preparando tu pedido"
+                OrderStatusStep.IN_TRANSIT -> "El repartidor va hacia tu ubicación"
+                OrderStatusStep.DELIVERED -> "Tu pedido fue entregado"
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(110.dp),
                 horizontalArrangement = Arrangement.spacedBy(JagooSpacing.sm)
             ) {
+                // Tiempo estimado
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
@@ -134,7 +159,7 @@ fun OrderTrackingScreen() {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "${activeOrder.estimatedMinutes}",
+                            text = "${order.estimatedMinutes}",
                             fontFamily = PoppinsFontFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 32.sp,
@@ -151,9 +176,13 @@ fun OrderTrackingScreen() {
                     }
                 }
 
+                // Estado actual
+                val cardColor = if (order.statusStep == OrderStatusStep.DELIVERED)
+                    JagooGreen.copy(alpha = 0.85f) else JagooGreen
+
                 Card(
                     shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = JagooGreen),
+                    colors = CardDefaults.cardColors(containerColor = cardColor),
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
@@ -168,8 +197,9 @@ fun OrderTrackingScreen() {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.TwoWheeler,
-                                contentDescription = "En camino",
+                                imageVector = if (order.statusStep == OrderStatusStep.DELIVERED)
+                                    Icons.Default.CheckCircle else Icons.Default.TwoWheeler,
+                                contentDescription = statusLabel,
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -181,7 +211,7 @@ fun OrderTrackingScreen() {
                                     .padding(horizontal = JagooSpacing.sm, vertical = 2.dp)
                             ) {
                                 Text(
-                                    text = "En camino",
+                                    text = statusLabel,
                                     fontFamily = PoppinsFontFamily,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 10.sp,
@@ -192,24 +222,28 @@ fun OrderTrackingScreen() {
 
                         Column {
                             Text(
-                                text = "El repartidor va hacia tu ubicación",
+                                text = statusDescription,
                                 fontFamily = PoppinsFontFamily,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
                                 color = Color.White
                             )
-                            Text(
-                                text = "Llegada aprox. 14:38",
-                                fontFamily = PoppinsFontFamily,
-                                fontSize = 11.sp,
-                                color = Color.White.copy(alpha = 0.8f)
-                            )
+                            if (order.statusStep == OrderStatusStep.IN_TRANSIT ||
+                                order.statusStep == OrderStatusStep.PREPARING
+                            ) {
+                                Text(
+                                    text = "Llegada aprox. en ${order.estimatedMinutes} min",
+                                    fontFamily = PoppinsFontFamily,
+                                    fontSize = 11.sp,
+                                    color = Color.White.copy(alpha = 0.8f)
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            // Order Timeline Card
+            // Timeline del pedido
             Card(
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = JagooCardWhite),
@@ -217,14 +251,14 @@ fun OrderTrackingScreen() {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Box(modifier = Modifier.padding(12.dp)) {
-                    OrderTimeline(items = activeOrder.timelineItems)
+                    OrderTimeline(items = order.timelineItems)
                 }
             }
 
-            // Courier Card
+            // Tarjeta del repartidor
             CourierCard(
-                name = activeOrder.courierName,
-                vehicleInfo = activeOrder.courierVehicle
+                name = order.courierName,
+                vehicleInfo = order.courierVehicle
             )
 
             // Resumen de la orden
@@ -244,13 +278,14 @@ fun OrderTrackingScreen() {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.ShoppingBag,
-                            contentDescription = "Detalle",
+                            contentDescription = "Detalle del pedido",
                             tint = JagooGreen,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(JagooSpacing.sm))
                         Text(
-                            text = "${activeOrder.items.size} platos · $${String.format("%.2f", activeOrder.total).replace('.', ',')} · Efectivo",
+                            text = "${order.items.size} plato${if (order.items.size != 1) "s" else ""}" +
+                                    " · $${String.format("%.2f", order.total).replace('.', ',')} · Efectivo",
                             fontFamily = PoppinsFontFamily,
                             fontWeight = FontWeight.Medium,
                             fontSize = 12.sp,
@@ -268,7 +303,7 @@ fun OrderTrackingScreen() {
                         )
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = "Ver detalle",
+                            contentDescription = "Ver detalle del pedido",
                             tint = JagooGreen,
                             modifier = Modifier.size(16.dp)
                         )

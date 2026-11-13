@@ -1,7 +1,14 @@
 package com.jagoo.app.ui.components
 
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.AnchoredDraggableState
+import androidx.compose.foundation.gestures.DraggableAnchors
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.anchoredDraggable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,13 +29,16 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -39,28 +50,95 @@ import com.jagoo.app.ui.theme.JagooRed
 import com.jagoo.app.ui.theme.JagooTextPrimary
 import com.jagoo.app.ui.theme.JagooTextSecondary
 import com.jagoo.app.ui.theme.PoppinsFontFamily
+import kotlin.math.roundToInt
 
+private enum class SwipeDismissState { Closed, Open }
+
+private val DELETE_WIDTH = 80.dp
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SwipeToDeleteItem(
     cartItem: CartItem,
+    // mantenido por compatibilidad con CartScreen pero ya no usado
     showDeleteButton: Boolean = false,
     onQuantityChange: (Int) -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    val density = LocalDensity.current
+    val deleteWidthPx = with(density) { DELETE_WIDTH.toPx() }
+
+    val state = remember(cartItem.dish.id) {
+        AnchoredDraggableState(
+            initialValue = SwipeDismissState.Closed,
+            anchors = DraggableAnchors {
+                SwipeDismissState.Closed at 0f
+                SwipeDismissState.Open at -deleteWidthPx
+            },
+            positionalThreshold = { total -> total * 0.4f },
+            velocityThreshold = { with(density) { 100.dp.toPx() } },
+            animationSpec = tween(durationMillis = 220)
+        )
+    }
+
+    val isOpen = state.targetValue == SwipeDismissState.Open
+
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(88.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .height(88.dp)
+            .clip(CardShape)
     ) {
+        // Fondo rojo con botón Eliminar, siempre detrás de la tarjeta
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(DELETE_WIDTH)
+                .align(Alignment.CenterEnd)
+                .background(JagooRed)
+                .clickable(
+                    enabled = isOpen,
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) { onDelete() }
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Eliminar ítem del carrito",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Eliminar",
+                    fontFamily = PoppinsFontFamily,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 10.sp,
+                    color = Color.White
+                )
+            }
+        }
+
+        // Tarjeta del ítem, deslizable hacia la izquierda para revelar el botón
         Card(
             shape = CardShape,
             colors = CardDefaults.cardColors(containerColor = JagooCardWhite),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
+                .fillMaxSize()
+                .offset {
+                    IntOffset(x = state.offset.roundToInt(), y = 0)
+                }
+                .anchoredDraggable(
+                    state = state,
+                    orientation = Orientation.Horizontal
+                )
         ) {
             Row(
                 modifier = Modifier
@@ -82,9 +160,7 @@ fun SwipeToDeleteItem(
                 Spacer(modifier = Modifier.width(10.dp))
 
                 // Nombre, opciones y precio
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = cartItem.dish.name,
                         fontFamily = PoppinsFontFamily,
@@ -132,40 +208,6 @@ fun SwipeToDeleteItem(
                     onDecrease = { onQuantityChange(cartItem.quantity - 1) },
                     onIncrease = { onQuantityChange(cartItem.quantity + 1) }
                 )
-            }
-        }
-
-        // Botón de eliminar si se activa
-        if (showDeleteButton) {
-            Spacer(modifier = Modifier.width(8.dp))
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .width(72.dp)
-                    .fillMaxHeight()
-                    .clip(CardShape)
-                    .background(JagooRed)
-                    .clickable { onDelete() }
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Eliminar",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Eliminar",
-                        fontFamily = PoppinsFontFamily,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 10.sp,
-                        color = Color.White
-                    )
-                }
             }
         }
     }

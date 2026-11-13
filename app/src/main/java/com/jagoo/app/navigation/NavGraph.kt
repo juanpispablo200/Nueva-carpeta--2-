@@ -85,7 +85,7 @@ fun NavGraph(
         }
 
         composable(Screen.Orders.route) {
-            OrderTrackingScreen()
+            OrderTrackingScreen(cartViewModel = cartViewModel)
         }
 
         composable(Screen.Cart.route) {
