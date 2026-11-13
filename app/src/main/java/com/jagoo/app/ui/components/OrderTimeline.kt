@@ -18,7 +18,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.TwoWheeler
-import androidx.compose.material3.HorizontalDivider  // Reemplaza el Divider deprecado de Material3 1.1+
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,8 +28,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.jagoo.app.data.MockData
 import com.jagoo.app.data.OrderTimelineItem
+import com.jagoo.app.data.RestaurantData
 import com.jagoo.app.ui.theme.JagooGreen
 import com.jagoo.app.ui.theme.JagooTextMuted
 import com.jagoo.app.ui.theme.JagooTextPrimary
@@ -39,12 +38,11 @@ import com.jagoo.app.ui.theme.PoppinsFontFamily
 
 @Composable
 fun OrderTimeline(
-    items: List<OrderTimelineItem> = MockData.orderTimelineItems
+    items: List<OrderTimelineItem> = RestaurantData.sampleTimelineItems
 ) {
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Gráfico horizontal: Tienda → Repartidor → Casa
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -62,14 +60,14 @@ fun OrderTimeline(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Store,
-                        contentDescription = "Tienda",
+                        contentDescription = "Restaurante",
                         tint = JagooGreen,
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Jagoo",
+                    text = "Cocina",
                     fontFamily = PoppinsFontFamily,
                     fontWeight = FontWeight.Medium,
                     fontSize = 10.sp,
@@ -77,7 +75,6 @@ fun OrderTimeline(
                 )
             }
 
-            // Línea de conexión activa (ya recorrida)
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -103,7 +100,6 @@ fun OrderTimeline(
                 }
             }
 
-            // Línea de conexión pendiente (aún no recorrida)
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -122,14 +118,14 @@ fun OrderTimeline(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Home,
-                        contentDescription = "Tu casa",
+                        contentDescription = "Tu dirección",
                         tint = JagooGreen,
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Tu casa",
+                    text = "Entrega",
                     fontFamily = PoppinsFontFamily,
                     fontWeight = FontWeight.Medium,
                     fontSize = 10.sp,
@@ -140,7 +136,6 @@ fun OrderTimeline(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Lista vertical de pasos del pedido
         Column(
             modifier = Modifier.padding(horizontal = 8.dp)
         ) {
@@ -149,7 +144,6 @@ fun OrderTimeline(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(vertical = 8.dp)
                 ) {
-                    // Indicador de estado del paso
                     when {
                         item.isCompleted -> {
                             Box(

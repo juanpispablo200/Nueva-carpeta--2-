@@ -9,38 +9,38 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.jagoo.app.data.MockData
+import com.jagoo.app.data.RestaurantData
 import com.jagoo.app.ui.components.FilterChip
 import com.jagoo.app.ui.components.JagooHeader
-import com.jagoo.app.ui.components.ProductCard
+import com.jagoo.app.ui.components.RestaurantCard
 import com.jagoo.app.ui.theme.JagooBackground
 import com.jagoo.app.viewmodel.CartViewModel
 import com.jagoo.app.viewmodel.ProductViewModel
 
 @Composable
 fun CategoryScreen(
-    categoryName: String = "Frutas y verduras",
+    categoryName: String = "Hamburguesas",
     productViewModel: ProductViewModel,
     cartViewModel: CartViewModel,
+    onNavigateToRestaurant: (String) -> Unit,
     onBackClick: () -> Unit
 ) {
-    val products by productViewModel.products.collectAsState()
+    val restaurants by productViewModel.restaurants.collectAsState()
     val selectedFilter by productViewModel.selectedFilterChip.collectAsState()
-    val filterChips = MockData.filterChips
+    val filterChips = RestaurantData.filterChips
 
-    // Filter products by category or display the category products
-    val categoryProducts = products.filter {
-        it.category == "Frutas y verduras" || categoryName == "Todas"
+    val categoryRestaurants = if (categoryName == "Todas" || categoryName == "Todos") {
+        restaurants
+    } else {
+        restaurants.filter { it.category.contains(categoryName, ignoreCase = true) || categoryName.contains(it.category, ignoreCase = true) }
     }
 
     Column(
@@ -48,7 +48,6 @@ fun CategoryScreen(
             .fillMaxSize()
             .background(JagooBackground)
     ) {
-        // Top Yellow Header with back button & category title
         JagooHeader(
             showBackButton = true,
             categoryTitle = categoryName,
@@ -74,24 +73,16 @@ fun CategoryScreen(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // 2-column product grid matching screenshot
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
+        // Lista de restaurantes
+        LazyColumn(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            items(categoryProducts) { product ->
-                // Check quantity in cart
-                val qtyInCart = if (product.name.contains("Tomate")) 2 else cartViewModel.getItemQuantity(product.id)
-
-                ProductCard(
-                    product = product,
-                    quantityInCart = qtyInCart,
-                    useYellowPlusButton = true, // Yellow '+' buttons per Screen 2 screenshot
-                    onAddToCart = { cartViewModel.addToCart(product) },
-                    onQuantityChange = { newQty -> cartViewModel.updateQuantity(product.id, newQty) }
+            items(categoryRestaurants) { restaurant ->
+                RestaurantCard(
+                    restaurant = restaurant,
+                    onClick = { onNavigateToRestaurant(restaurant.id) }
                 )
             }
         }

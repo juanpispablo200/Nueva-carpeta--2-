@@ -4,7 +4,7 @@
             "outputFile": "com.jagoo.app-mergeDebugResources-51:/values-bs/values-bs.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Juan Pablo\\.gradle\\caches\\transforms-3\\b0d45c2f78d0312982afe16bd14928c5\\transformed\\foundation-release\\res\\values-bs\\values-bs.xml",
+                    "source": "C:\\Users\\Juan Pablo\\.gradle\\caches\\9.7.1\\transforms\\db76df5b8cd262b31ba5a332d5e60720\\transformed\\foundation-release\\res\\values-bs\\values-bs.xml",
                     "from": {
                         "startLines": "2,3",
                         "startColumns": "4,4",
@@ -21,7 +21,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Juan Pablo\\.gradle\\caches\\transforms-3\\b9ed634678e70434be02eefa66d89710\\transformed\\ui-release\\res\\values-bs\\values-bs.xml",
+                    "source": "C:\\Users\\Juan Pablo\\.gradle\\caches\\9.7.1\\transforms\\983f17f88353b319c77d16b479a92287\\transformed\\ui-release\\res\\values-bs\\values-bs.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -38,7 +38,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Juan Pablo\\.gradle\\caches\\transforms-3\\e35fd005d88aafcb0f85de2db5933430\\transformed\\core-1.12.0\\res\\values-bs\\values-bs.xml",
+                    "source": "C:\\Users\\Juan Pablo\\.gradle\\caches\\9.7.1\\transforms\\f59b0e7dc39416f7b0256937a6021a06\\transformed\\core-1.12.0\\res\\values-bs\\values-bs.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",
@@ -55,7 +55,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Juan Pablo\\.gradle\\caches\\transforms-3\\14048cc3dc5aef96e8c7c254cac2b0c9\\transformed\\material3-release\\res\\values-bs\\values-bs.xml",
+                    "source": "C:\\Users\\Juan Pablo\\.gradle\\caches\\9.7.1\\transforms\\5ca7a32bc2c1f05bcbf2fd8861c91969\\transformed\\material3-release\\res\\values-bs\\values-bs.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",

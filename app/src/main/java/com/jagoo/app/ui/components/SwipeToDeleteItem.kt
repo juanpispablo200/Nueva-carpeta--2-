@@ -1,6 +1,5 @@
 package com.jagoo.app.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
@@ -29,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -52,10 +51,9 @@ fun SwipeToDeleteItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(84.dp),
+            .height(88.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Main Cart Card
         Card(
             shape = CardShape,
             colors = CardDefaults.cardColors(containerColor = JagooCardWhite),
@@ -71,41 +69,64 @@ fun SwipeToDeleteItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Image
+                // Imagen del plato
                 AsyncImage(
-                    model = cartItem.product.imageUrl,
-                    contentDescription = cartItem.product.name,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.size(54.dp)
+                    model = cartItem.dish.imageUrl,
+                    contentDescription = cartItem.dish.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CardShape)
                 )
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                // Name & Subtitle
+                // Nombre, opciones y precio
                 Column(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = if (cartItem.product.weightOrQuantity.isNotEmpty())
-                            "${cartItem.product.name} ${cartItem.product.weightOrQuantity}"
-                        else cartItem.product.name,
+                        text = cartItem.dish.name,
                         fontFamily = PoppinsFontFamily,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp,
                         color = JagooTextPrimary,
-                        maxLines = 1
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+
+                    if (cartItem.selectedOptions.isNotEmpty()) {
+                        Text(
+                            text = cartItem.selectedOptions.joinToString { it.optionName },
+                            fontFamily = PoppinsFontFamily,
+                            fontSize = 10.sp,
+                            color = JagooTextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    } else {
+                        Text(
+                            text = cartItem.restaurantName,
+                            fontFamily = PoppinsFontFamily,
+                            fontSize = 10.sp,
+                            color = JagooTextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
                     Text(
-                        text = String.format("$%.2f", cartItem.product.price).replace('.', ','),
+                        text = "$${String.format("%.2f", cartItem.totalPrice).replace('.', ',')}",
                         fontFamily = PoppinsFontFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
+                        fontSize = 14.sp,
                         color = JagooGreen
                     )
                 }
 
-                // Quantity selector
+                // Selector de cantidad
                 QuantitySelector(
                     quantity = cartItem.quantity,
                     onDecrease = { onQuantityChange(cartItem.quantity - 1) },
@@ -114,7 +135,7 @@ fun SwipeToDeleteItem(
             }
         }
 
-        // Delete Red Action Button (if shown or swiped as in screen 3 example item 2)
+        // Botón de eliminar si se activa
         if (showDeleteButton) {
             Spacer(modifier = Modifier.width(8.dp))
             Box(

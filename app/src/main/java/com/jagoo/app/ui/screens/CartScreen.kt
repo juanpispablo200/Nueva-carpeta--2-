@@ -16,10 +16,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocalOffer
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -27,6 +30,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,6 +49,7 @@ import com.jagoo.app.ui.theme.JagooBackground
 import com.jagoo.app.ui.theme.JagooCardWhite
 import com.jagoo.app.ui.theme.JagooDivider
 import com.jagoo.app.ui.theme.JagooGreen
+import com.jagoo.app.ui.theme.JagooRed
 import com.jagoo.app.ui.theme.JagooSpacing
 import com.jagoo.app.ui.theme.JagooTextMuted
 import com.jagoo.app.ui.theme.JagooTextPrimary
@@ -59,9 +64,10 @@ fun CartScreen(
     onContinueClick: () -> Unit
 ) {
     val cartItems by cartViewModel.cartItems.collectAsState()
-    val couponCode by cartViewModel.couponCode.collectAsState()
     val couponApplied by cartViewModel.couponApplied.collectAsState()
+    val cartConflict by cartViewModel.cartConflict.collectAsState()
 
+    val restaurantName = cartViewModel.currentRestaurantName ?: "Restaurante"
     val subtotal = cartViewModel.getSubtotal()
     val total = cartViewModel.getTotal()
     val deliveryFee = cartViewModel.deliveryFee
@@ -71,7 +77,6 @@ fun CartScreen(
             .fillMaxSize()
             .background(JagooBackground)
     ) {
-        // Top Yellow Header
         JagooHeader()
 
         Column(
@@ -83,40 +88,65 @@ fun CartScreen(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
-                // Screen Title "Carrito"
-                Text(
-                    text = "Carrito",
-                    fontFamily = PoppinsFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp,
-                    color = JagooGreen,
-                    modifier = Modifier.padding(vertical = JagooSpacing.sm)
-                )
-
-                // Mostrar estado vacío o lista de items
-                if (cartItems.isEmpty()) {
-                    // Estado de carrito vacío
-                    EmptyCartState(
-                        onStartShopping = onContinueClick
+                // Título y Nombre del Restaurante del Pedido
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Tu Carrito",
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 22.sp,
+                        color = JagooGreen,
+                        modifier = Modifier.padding(vertical = JagooSpacing.sm)
                     )
+
+                    if (cartItems.isNotEmpty()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(JagooGreen.copy(alpha = 0.1f))
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Restaurant,
+                                contentDescription = "Restaurante",
+                                tint = JagooGreen,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = restaurantName,
+                                fontFamily = PoppinsFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = JagooGreen
+                            )
+                        }
+                    }
+                }
+
+                if (cartItems.isEmpty()) {
+                    EmptyCartState(onStartShopping = onContinueClick)
                 } else {
-                    // List of Cart Items
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(JagooSpacing.sm),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         itemsIndexed(cartItems) { index, cartItem ->
-                            // Show swipe delete demo button on second item per Screen 3 screenshot
                             val isDemoDelete = index == 1
 
                             SwipeToDeleteItem(
                                 cartItem = cartItem,
                                 showDeleteButton = isDemoDelete,
                                 onQuantityChange = { newQty ->
-                                    cartViewModel.updateQuantity(cartItem.product.id, newQty)
+                                    cartViewModel.updateQuantity(cartItem.dish.id, newQty)
                                 },
                                 onDelete = {
-                                    cartViewModel.removeItem(cartItem.product.id)
+                                    cartViewModel.removeItem(cartItem.dish.id)
                                 }
                             )
                         }
@@ -124,7 +154,7 @@ fun CartScreen(
 
                     Spacer(modifier = Modifier.height(JagooSpacing.md))
 
-                    // Coupon box
+                    // Caja de cupón de descuento
                     Card(
                         shape = CouponShape,
                         colors = CardDefaults.cardColors(containerColor = JagooCardWhite),
@@ -140,9 +170,7 @@ fun CartScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = if (couponApplied) Icons.Default.CheckCircle else Icons.Default.LocalOffer,
                                     contentDescription = "Cupón",
@@ -159,7 +187,6 @@ fun CartScreen(
                                 )
                             }
 
-                            // Apply Button
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
@@ -181,7 +208,7 @@ fun CartScreen(
 
                     Spacer(modifier = Modifier.height(JagooSpacing.lg))
 
-                    // Summary calculations (Subtotal, Envío, Total)
+                    // Resumen de la orden (Subtotal, Envío, Total)
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(JagooSpacing.sm)
@@ -198,7 +225,7 @@ fun CartScreen(
                                 color = JagooTextPrimary
                             )
                             Text(
-                                text = String.format("$%.2f", subtotal).replace('.', ','),
+                                text = "$${String.format("%.2f", subtotal).replace('.', ',')}",
                                 fontFamily = PoppinsFontFamily,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp,
@@ -211,14 +238,14 @@ fun CartScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Envío",
+                                text = "Envío de restaurante",
                                 fontFamily = PoppinsFontFamily,
                                 fontWeight = FontWeight.Medium,
                                 fontSize = 14.sp,
                                 color = JagooTextPrimary
                             )
                             Text(
-                                text = String.format("$%.2f", deliveryFee).replace('.', ','),
+                                text = "$${String.format("%.2f", deliveryFee).replace('.', ',')}",
                                 fontFamily = PoppinsFontFamily,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp,
@@ -226,7 +253,6 @@ fun CartScreen(
                             )
                         }
 
-                        // Separador visual antes del total
                         Spacer(modifier = Modifier.height(JagooSpacing.xs))
                         HorizontalDivider(
                             thickness = 1.dp,
@@ -240,14 +266,14 @@ fun CartScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Total",
+                                text = "Total a pagar",
                                 fontFamily = PoppinsFontFamily,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp,
                                 color = JagooGreen
                             )
                             Text(
-                                text = String.format("$%.2f", total).replace('.', ','),
+                                text = "$${String.format("%.2f", total).replace('.', ',')}",
                                 fontFamily = PoppinsFontFamily,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 22.sp,
@@ -260,10 +286,9 @@ fun CartScreen(
 
             Spacer(modifier = Modifier.height(JagooSpacing.md))
 
-            // Continuar Button (deshabilitado si el carrito está vacío)
             Button(
                 onClick = onContinueClick,
-                enabled = cartItems.isNotEmpty(),  // Deshabilitar cuando está vacío
+                enabled = cartItems.isNotEmpty(),
                 shape = PillShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = JagooYellow,
@@ -274,7 +299,7 @@ fun CartScreen(
                     .height(52.dp)
             ) {
                 Text(
-                    text = if (cartItems.isEmpty()) "Carrito vacío" else "Continuar",
+                    text = if (cartItems.isEmpty()) "Carrito vacío" else "Confirmar Pedido",
                     fontFamily = PoppinsFontFamily,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
@@ -282,6 +307,55 @@ fun CartScreen(
                 )
             }
         }
+    }
+
+    // Diálogo de conflicto de carrito si intenta agregar de otro restaurante
+    cartConflict?.let { conflict ->
+        AlertDialog(
+            onDismissRequest = { cartViewModel.dismissConflictDialog() },
+            title = {
+                Text(
+                    text = "¿Crear nuevo pedido?",
+                    fontFamily = PoppinsFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = JagooTextPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "Tu carrito contiene productos de '${conflict.currentRestaurantName}'. ¿Deseas vaciarlo para agregar de '${conflict.newRestaurantName}'?",
+                    fontFamily = PoppinsFontFamily,
+                    fontSize = 14.sp,
+                    color = JagooTextPrimary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { cartViewModel.confirmClearCartAndAddPending() },
+                    colors = ButtonDefaults.buttonColors(containerColor = JagooRed),
+                    shape = PillShape
+                ) {
+                    Text(
+                        text = "Vaciar e Iniciar",
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { cartViewModel.dismissConflictDialog() }
+                ) {
+                    Text(
+                        text = "Cancelar",
+                        fontFamily = PoppinsFontFamily,
+                        color = JagooGreen
+                    )
+                }
+            }
+        )
     }
 }
 
@@ -296,7 +370,6 @@ private fun EmptyCartState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Icono de carrito vacío
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
@@ -314,7 +387,6 @@ private fun EmptyCartState(
 
         Spacer(modifier = Modifier.height(JagooSpacing.lg))
 
-        // Texto informativo
         Text(
             text = "Tu carrito está vacío",
             fontFamily = PoppinsFontFamily,
@@ -327,7 +399,7 @@ private fun EmptyCartState(
         Spacer(modifier = Modifier.height(JagooSpacing.sm))
 
         Text(
-            text = "Agrega productos para continuar\ncon tu compra",
+            text = "Explora tus restaurantes favoritos\ny agrega tus platos preferidos",
             fontFamily = PoppinsFontFamily,
             fontWeight = FontWeight.Normal,
             fontSize = 14.sp,
@@ -338,7 +410,6 @@ private fun EmptyCartState(
 
         Spacer(modifier = Modifier.height(JagooSpacing.xl))
 
-        // Botón para empezar a comprar
         Button(
             onClick = onStartShopping,
             shape = PillShape,
@@ -348,7 +419,7 @@ private fun EmptyCartState(
                 .height(48.dp)
         ) {
             Text(
-                text = "Empezar a comprar",
+                text = "Explorar Restaurantes",
                 fontFamily = PoppinsFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,

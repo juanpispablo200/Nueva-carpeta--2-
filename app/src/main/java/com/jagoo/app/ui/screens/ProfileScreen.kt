@@ -17,7 +17,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
@@ -58,7 +60,7 @@ fun ProfileScreen() {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Profile Card
+            // Tarjeta de datos del usuario
             Card(
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = JagooCardWhite),
@@ -106,7 +108,7 @@ fun ProfileScreen() {
                 }
             }
 
-            // Profile Menu Options
+            // Opciones del Menú de Perfil
             Card(
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = JagooCardWhite),
@@ -116,10 +118,12 @@ fun ProfileScreen() {
                 Column(
                     modifier = Modifier.padding(vertical = 8.dp)
                 ) {
+                    ProfileMenuItem(Icons.Default.Favorite, "Restaurantes Favoritos", "3 restaurantes guardados")
                     ProfileMenuItem(Icons.Default.LocationOn, "Mis Direcciones", "Av. República del Salvador, Quito")
-                    ProfileMenuItem(Icons.Default.CreditCard, "Métodos de Pago", "Efectivo / Tarjeta")
-                    ProfileMenuItem(Icons.Default.Notifications, "Notificaciones", "Activadas")
-                    ProfileMenuItem(Icons.Default.HelpOutline, "Centro de Ayuda", "Preguntas frecuentes")
+                    ProfileMenuItem(Icons.Default.History, "Historial de Pedidos", "Ver pedidos anteriores")
+                    ProfileMenuItem(Icons.Default.CreditCard, "Métodos de Pago", "Efectivo / Tarjeta crédito")
+                    ProfileMenuItem(Icons.Default.Notifications, "Notificaciones", "Promociones y estado")
+                    ProfileMenuItem(Icons.Default.HelpOutline, "Centro de Ayuda", "Preguntas frecuentes y soporte")
                 }
             }
         }

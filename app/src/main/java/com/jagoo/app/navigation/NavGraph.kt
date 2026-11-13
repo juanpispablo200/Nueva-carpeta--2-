@@ -12,6 +12,7 @@ import com.jagoo.app.ui.screens.CategoryScreen
 import com.jagoo.app.ui.screens.HomeScreen
 import com.jagoo.app.ui.screens.OrderTrackingScreen
 import com.jagoo.app.ui.screens.ProfileScreen
+import com.jagoo.app.ui.screens.RestaurantDetailScreen
 import com.jagoo.app.ui.screens.SearchScreen
 import com.jagoo.app.viewmodel.CartViewModel
 import com.jagoo.app.viewmodel.ProductViewModel
@@ -32,6 +33,9 @@ fun NavGraph(
             HomeScreen(
                 productViewModel = productViewModel,
                 cartViewModel = cartViewModel,
+                onNavigateToRestaurant = { restaurantId ->
+                    navController.navigate(Screen.RestaurantDetail.createRoute(restaurantId))
+                },
                 onNavigateToCategory = { categoryName ->
                     navController.navigate(Screen.Category.createRoute(categoryName))
                 }
@@ -42,11 +46,30 @@ fun NavGraph(
             route = Screen.Category.route,
             arguments = listOf(navArgument("name") { type = NavType.StringType })
         ) { backStackEntry ->
-            val name = backStackEntry.arguments?.getString("name") ?: "Frutas y verduras"
+            val name = backStackEntry.arguments?.getString("name") ?: "Hamburguesas"
             CategoryScreen(
                 categoryName = name,
                 productViewModel = productViewModel,
                 cartViewModel = cartViewModel,
+                onNavigateToRestaurant = { restaurantId ->
+                    navController.navigate(Screen.RestaurantDetail.createRoute(restaurantId))
+                },
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.RestaurantDetail.route,
+            arguments = listOf(navArgument("id") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val restaurantId = backStackEntry.arguments?.getString("id") ?: "r1"
+            RestaurantDetailScreen(
+                restaurantId = restaurantId,
+                productViewModel = productViewModel,
+                cartViewModel = cartViewModel,
+                onNavigateToCart = {
+                    navController.navigate(Screen.Cart.route)
+                },
                 onBackClick = { navController.popBackStack() }
             )
         }
@@ -54,7 +77,10 @@ fun NavGraph(
         composable(Screen.Search.route) {
             SearchScreen(
                 productViewModel = productViewModel,
-                cartViewModel = cartViewModel
+                cartViewModel = cartViewModel,
+                onNavigateToRestaurant = { restaurantId ->
+                    navController.navigate(Screen.RestaurantDetail.createRoute(restaurantId))
+                }
             )
         }
 

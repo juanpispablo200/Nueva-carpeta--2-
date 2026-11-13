@@ -51,6 +51,7 @@ fun JagooHeader(
     showBackButton: Boolean = false,
     categoryTitle: String? = null,
     searchQuery: String = "",
+    placeholderText: String = "¿Qué se te antoja hoy?",
     onSearchQueryChange: (String) -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
@@ -108,7 +109,6 @@ fun JagooHeader(
                     }
 
                     Spacer(modifier = Modifier.width(JagooSpacing.sm))
-                    // Separador visual (reemplaza el Text("|") anterior — más robusto y consistente)
                     Box(
                         modifier = Modifier
                             .width(1.dp)
@@ -144,7 +144,7 @@ fun JagooHeader(
                                     text = "Entregar en",
                                     fontFamily = PoppinsFontFamily,
                                     fontSize = 9.sp,
-                                    color = JagooTextSecondary,  // Mejor contraste que alpha
+                                    color = JagooTextSecondary,
                                     lineHeight = 10.sp
                                 )
                                 Text(
@@ -163,7 +163,6 @@ fun JagooHeader(
 
                 if (categoryTitle == null) {
                     Spacer(modifier = Modifier.width(JagooSpacing.sm))
-                    // Badge de tiempo estimado de entrega
                     Row(
                         modifier = Modifier
                             .clip(CircleShape)
@@ -179,7 +178,7 @@ fun JagooHeader(
                         )
                         Spacer(modifier = Modifier.width(JagooSpacing.xs))
                         Text(
-                            text = "30-45 min",
+                            text = "20-35 min",
                             fontFamily = PoppinsFontFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 10.sp,
@@ -191,8 +190,6 @@ fun JagooHeader(
 
             if (showSearchBar) {
                 Spacer(modifier = Modifier.height(JagooSpacing.sm))
-                // Buscador interactivo real con BasicTextField
-                // Antes era un Text estático — ahora el usuario puede escribir y filtrar
                 BasicTextField(
                     value = searchQuery,
                     onValueChange = onSearchQueryChange,
@@ -225,10 +222,9 @@ fun JagooHeader(
                             )
                             Spacer(modifier = Modifier.width(JagooSpacing.sm))
                             Box(modifier = Modifier.weight(1f)) {
-                                // Placeholder visible cuando no hay texto
                                 if (searchQuery.isEmpty()) {
                                     Text(
-                                        text = "Buscar en Jagoo",
+                                        text = placeholderText,
                                         fontFamily = PoppinsFontFamily,
                                         fontSize = 14.sp,
                                         color = Color.Gray

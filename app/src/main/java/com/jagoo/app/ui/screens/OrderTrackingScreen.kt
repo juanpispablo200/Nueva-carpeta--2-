@@ -1,7 +1,6 @@
 package com.jagoo.app.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.TwoWheeler
 import androidx.compose.material3.Card
@@ -34,6 +34,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.jagoo.app.data.RestaurantData
 import com.jagoo.app.ui.components.CourierCard
 import com.jagoo.app.ui.components.JagooHeader
 import com.jagoo.app.ui.components.OrderTimeline
@@ -48,12 +50,13 @@ import com.jagoo.app.ui.theme.PoppinsFontFamily
 
 @Composable
 fun OrderTrackingScreen() {
+    val activeOrder = RestaurantData.sampleActiveOrder
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(JagooBackground)
     ) {
-        // Top Yellow Header
         JagooHeader()
 
         Column(
@@ -63,14 +66,62 @@ fun OrderTrackingScreen() {
                 .padding(horizontal = JagooSpacing.md, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Hero Status Section: caja de 18 min + tarjeta verde "En camino"
+            // Tarjeta del restaurante del pedido
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = JagooCardWhite),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(JagooYellow)
+                    ) {
+                        AsyncImage(
+                            model = activeOrder.restaurantLogoUrl,
+                            contentDescription = activeOrder.restaurantName,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column {
+                        Text(
+                            text = activeOrder.restaurantName,
+                            fontFamily = PoppinsFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = JagooTextPrimary
+                        )
+                        Text(
+                            text = "Pedido #${activeOrder.id} · ${activeOrder.items.size} ítems",
+                            fontFamily = PoppinsFontFamily,
+                            fontSize = 12.sp,
+                            color = Color.Gray
+                        )
+                    }
+                }
+            }
+
+            // Status Section: caja de tiempo estimado + tarjeta verde "En camino"
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(110.dp),
                 horizontalArrangement = Arrangement.spacedBy(JagooSpacing.sm)
             ) {
-                // Left: Yellow Box con tiempo estimado (18 min)
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
@@ -83,7 +134,7 @@ fun OrderTrackingScreen() {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "18",
+                            text = "${activeOrder.estimatedMinutes}",
                             fontFamily = PoppinsFontFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 32.sp,
@@ -100,7 +151,6 @@ fun OrderTrackingScreen() {
                     }
                 }
 
-                // Right: Green Status Card
                 Card(
                     shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(containerColor = JagooGreen),
@@ -142,14 +192,14 @@ fun OrderTrackingScreen() {
 
                         Column {
                             Text(
-                                text = "Tu pedido va en camino",
+                                text = "El repartidor va hacia tu ubicación",
                                 fontFamily = PoppinsFontFamily,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
+                                fontSize = 14.sp,
                                 color = Color.White
                             )
                             Text(
-                                text = "Pedido #JG-2048",
+                                text = "Llegada aprox. 14:38",
                                 fontFamily = PoppinsFontFamily,
                                 fontSize = 11.sp,
                                 color = Color.White.copy(alpha = 0.8f)
@@ -167,14 +217,17 @@ fun OrderTrackingScreen() {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Box(modifier = Modifier.padding(12.dp)) {
-                    OrderTimeline()
+                    OrderTimeline(items = activeOrder.timelineItems)
                 }
             }
 
             // Courier Card
-            CourierCard()
+            CourierCard(
+                name = activeOrder.courierName,
+                vehicleInfo = activeOrder.courierVehicle
+            )
 
-            // Order summary bottom row
+            // Resumen de la orden
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = JagooCardWhite),
@@ -188,9 +241,7 @@ fun OrderTrackingScreen() {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.ShoppingBag,
                             contentDescription = "Detalle",
@@ -199,7 +250,7 @@ fun OrderTrackingScreen() {
                         )
                         Spacer(modifier = Modifier.width(JagooSpacing.sm))
                         Text(
-                            text = "6 productos · $23,40 · Efectivo",
+                            text = "${activeOrder.items.size} platos · $${String.format("%.2f", activeOrder.total).replace('.', ',')} · Efectivo",
                             fontFamily = PoppinsFontFamily,
                             fontWeight = FontWeight.Medium,
                             fontSize = 12.sp,
@@ -207,9 +258,7 @@ fun OrderTrackingScreen() {
                         )
                     }
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "Ver detalle",
                             fontFamily = PoppinsFontFamily,

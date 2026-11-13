@@ -2,16 +2,25 @@ package com.jagoo.app.viewmodel
 
 import androidx.lifecycle.ViewModel
 import com.jagoo.app.data.CartItem
-import com.jagoo.app.data.MockData
-import com.jagoo.app.data.Product
+import com.jagoo.app.data.Dish
+import com.jagoo.app.data.RestaurantData
+import com.jagoo.app.data.SelectedOption
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
+data class CartConflict(
+    val newDish: Dish,
+    val newRestaurantName: String,
+    val currentRestaurantName: String,
+    val selectedOptions: List<SelectedOption> = emptyList(),
+    val specialInstructions: String = ""
+)
+
 class CartViewModel : ViewModel() {
 
-    private val _cartItems = MutableStateFlow<List<CartItem>>(MockData.initialCartItems)
+    private val _cartItems = MutableStateFlow<List<CartItem>>(RestaurantData.initialCartItems)
     val cartItems: StateFlow<List<CartItem>> = _cartItems.asStateFlow()
 
     private val _couponCode = MutableStateFlow("")
@@ -20,10 +29,23 @@ class CartViewModel : ViewModel() {
     private val _couponApplied = MutableStateFlow(false)
     val couponApplied: StateFlow<Boolean> = _couponApplied.asStateFlow()
 
-    val deliveryFee = 1.50
+    private val _cartConflict = MutableStateFlow<CartConflict?>(null)
+    val cartConflict: StateFlow<CartConflict?> = _cartConflict.asStateFlow()
+
+    val currentRestaurantId: String?
+        get() = _cartItems.value.firstOrNull()?.restaurantId
+
+    val currentRestaurantName: String?
+        get() = _cartItems.value.firstOrNull()?.restaurantName
+
+    val deliveryFee: Double
+        get() {
+            val restId = currentRestaurantId ?: return 1.50
+            return RestaurantData.restaurants.find { it.id == restId }?.deliveryFee ?: 1.50
+        }
 
     fun getSubtotal(): Double {
-        return _cartItems.value.sumOf { it.product.price * it.quantity }
+        return _cartItems.value.sumOf { it.totalPrice }
     }
 
     fun getTotal(): Double {
@@ -32,41 +54,95 @@ class CartViewModel : ViewModel() {
         return (subtotal + deliveryFee - discount).coerceAtLeast(0.0)
     }
 
-    fun getItemQuantity(productId: String): Int {
-        return _cartItems.value.find { it.product.id == productId }?.quantity ?: 0
+    fun getItemQuantity(dishId: String): Int {
+        return _cartItems.value.filter { it.dish.id == dishId }.sumOf { it.quantity }
     }
 
-    fun addToCart(product: Product) {
+    fun addToCart(
+        dish: Dish,
+        selectedOptions: List<SelectedOption> = emptyList(),
+        specialInstructions: String = ""
+    ) {
+        val currentRestId = currentRestaurantId
+        if (currentRestId != null && currentRestId != dish.restaurantId) {
+            // Conflicto de restaurante: intentar agregar plato de otro restaurante
+            _cartConflict.value = CartConflict(
+                newDish = dish,
+                newRestaurantName = dish.restaurantName,
+                currentRestaurantName = currentRestaurantName ?: "otro restaurante",
+                selectedOptions = selectedOptions,
+                specialInstructions = specialInstructions
+            )
+            return
+        }
+
+        // Agregar normalmente
+        addDishDirectly(dish, selectedOptions, specialInstructions)
+    }
+
+    fun confirmClearCartAndAddPending() {
+        val conflict = _cartConflict.value ?: return
+        _cartItems.value = emptyList()
+        addDishDirectly(conflict.newDish, conflict.selectedOptions, conflict.specialInstructions)
+        _cartConflict.value = null
+    }
+
+    fun dismissConflictDialog() {
+        _cartConflict.value = null
+    }
+
+    private fun addDishDirectly(
+        dish: Dish,
+        selectedOptions: List<SelectedOption>,
+        specialInstructions: String
+    ) {
         _cartItems.update { items ->
-            val existing = items.find { it.product.id == product.id }
-            if (existing != null) {
-                items.map {
-                    if (it.product.id == product.id) it.copy(quantity = it.quantity + 1)
-                    else it
+            val existingIndex = items.indexOfFirst {
+                it.dish.id == dish.id && it.selectedOptions == selectedOptions
+            }
+
+            if (existingIndex >= 0) {
+                items.mapIndexed { index, item ->
+                    if (index == existingIndex) item.copy(quantity = item.quantity + 1)
+                    else item
                 }
             } else {
-                items + CartItem(product = product, quantity = 1)
+                items + CartItem(
+                    dish = dish,
+                    restaurantId = dish.restaurantId,
+                    restaurantName = dish.restaurantName,
+                    quantity = 1,
+                    selectedOptions = selectedOptions,
+                    specialInstructions = specialInstructions
+                )
             }
         }
     }
 
-    fun updateQuantity(productId: String, newQuantity: Int) {
+    fun updateQuantity(dishId: String, newQuantity: Int) {
         _cartItems.update { items ->
             if (newQuantity <= 0) {
-                items.filter { it.product.id != productId }
+                items.filter { it.dish.id != dishId }
             } else {
-                items.map {
-                    if (it.product.id == productId) it.copy(quantity = newQuantity)
-                    else it
-                }
+                val index = items.indexOfFirst { it.dish.id == dishId }
+                if (index >= 0) {
+                    items.mapIndexed { i, item ->
+                        if (i == index) item.copy(quantity = newQuantity)
+                        else item
+                    }
+                } else items
             }
         }
     }
 
-    fun removeItem(productId: String) {
+    fun removeItem(dishId: String) {
         _cartItems.update { items ->
-            items.filter { it.product.id != productId }
+            items.filter { it.dish.id != dishId }
         }
+    }
+
+    fun clearCart() {
+        _cartItems.value = emptyList()
     }
 
     fun setCouponCode(code: String) {
