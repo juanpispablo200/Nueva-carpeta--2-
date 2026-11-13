@@ -7,9 +7,13 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.jagoo.app.ui.screens.AddressesScreen
+import com.jagoo.app.ui.screens.AdminDashboardScreen
+import com.jagoo.app.ui.screens.AdminMenuScreen
 import com.jagoo.app.ui.screens.CartScreen
 import com.jagoo.app.ui.screens.CategoryScreen
 import com.jagoo.app.ui.screens.HomeScreen
+import com.jagoo.app.ui.screens.OrderHistoryScreen
 import com.jagoo.app.ui.screens.OrderTrackingScreen
 import com.jagoo.app.ui.screens.ProfileScreen
 import com.jagoo.app.ui.screens.RestaurantDetailScreen
@@ -74,6 +78,42 @@ fun NavGraph(
             )
         }
 
+        composable(Screen.AdminDashboard.route) {
+            AdminDashboardScreen(
+                productViewModel = productViewModel,
+                onNavigateToMenuAdmin = { restaurantId ->
+                    navController.navigate(Screen.AdminMenu.createRoute(restaurantId))
+                },
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.AdminMenu.route,
+            arguments = listOf(navArgument("restaurantId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val restaurantId = backStackEntry.arguments?.getString("restaurantId") ?: "r1"
+            AdminMenuScreen(
+                restaurantId = restaurantId,
+                productViewModel = productViewModel,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.OrderHistory.route) {
+            OrderHistoryScreen(
+                cartViewModel = cartViewModel,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.Addresses.route) {
+            AddressesScreen(
+                productViewModel = productViewModel,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
         composable(Screen.Search.route) {
             SearchScreen(
                 productViewModel = productViewModel,
@@ -85,7 +125,12 @@ fun NavGraph(
         }
 
         composable(Screen.Orders.route) {
-            OrderTrackingScreen(cartViewModel = cartViewModel)
+            OrderTrackingScreen(
+                cartViewModel = cartViewModel,
+                onExploreRestaurants = {
+                    navController.navigate(Screen.Home.route)
+                }
+            )
         }
 
         composable(Screen.Cart.route) {
@@ -98,7 +143,18 @@ fun NavGraph(
         }
 
         composable(Screen.Profile.route) {
-            ProfileScreen()
+            ProfileScreen(
+                productViewModel = productViewModel,
+                onNavigateToAddresses = {
+                    navController.navigate(Screen.Addresses.route)
+                },
+                onNavigateToHistory = {
+                    navController.navigate(Screen.OrderHistory.route)
+                },
+                onNavigateToAdmin = {
+                    navController.navigate(Screen.AdminDashboard.route)
+                }
+            )
         }
     }
 }

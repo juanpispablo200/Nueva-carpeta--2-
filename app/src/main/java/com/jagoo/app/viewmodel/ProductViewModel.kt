@@ -1,24 +1,29 @@
 package com.jagoo.app.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import com.jagoo.app.data.Category
 import com.jagoo.app.data.Dish
 import com.jagoo.app.data.Restaurant
 import com.jagoo.app.data.RestaurantData
+import com.jagoo.app.data.repository.AddressItem
+import com.jagoo.app.data.repository.LocalJagooRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-class ProductViewModel : ViewModel() {
+class ProductViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val repository = LocalJagooRepository(application)
 
     private val _categories = MutableStateFlow<List<Category>>(RestaurantData.categories)
     val categories: StateFlow<List<Category>> = _categories.asStateFlow()
 
-    private val _restaurants = MutableStateFlow<List<Restaurant>>(RestaurantData.restaurants)
+    private val _restaurants = MutableStateFlow<List<Restaurant>>(repository.getRestaurants())
     val restaurants: StateFlow<List<Restaurant>> = _restaurants.asStateFlow()
 
-    private val _dishes = MutableStateFlow<List<Dish>>(RestaurantData.dishes)
+    private val _dishes = MutableStateFlow<List<Dish>>(emptyList())
     val dishes: StateFlow<List<Dish>> = _dishes.asStateFlow()
 
     private val _selectedFilterChip = MutableStateFlow("Todos")
@@ -32,6 +37,18 @@ class ProductViewModel : ViewModel() {
 
     private val _favoriteRestaurantIds = MutableStateFlow<Set<String>>(setOf("r1", "r3"))
     val favoriteRestaurantIds: StateFlow<Set<String>> = _favoriteRestaurantIds.asStateFlow()
+
+    private val _addresses = MutableStateFlow<List<AddressItem>>(repository.getAddresses())
+    val addresses: StateFlow<List<AddressItem>> = _addresses.asStateFlow()
+
+    init {
+        refreshData()
+    }
+
+    fun refreshData() {
+        _restaurants.value = repository.getRestaurants()
+        _addresses.value = repository.getAddresses()
+    }
 
     fun selectFilterChip(chip: String) {
         _selectedFilterChip.value = chip
@@ -61,7 +78,51 @@ class ProductViewModel : ViewModel() {
     }
 
     fun getDishesForRestaurant(restaurantId: String): List<Dish> {
-        return _dishes.value.filter { it.restaurantId == restaurantId }
+        val loaded = repository.getDishesForRestaurant(restaurantId)
+        _dishes.value = loaded
+        return loaded
+    }
+
+    // --- MÉTODOS DEL PANEL ADMINISTRADOR Y DIRECCIONES ---
+
+    fun updateRestaurantStatus(restaurantId: String, isOpen: Boolean) {
+        repository.updateRestaurantStatus(restaurantId, isOpen)
+        refreshData()
+    }
+
+    fun saveDish(dish: Dish) {
+        repository.saveDish(dish)
+        getDishesForRestaurant(dish.restaurantId)
+    }
+
+    fun deleteDish(dishId: String, restaurantId: String) {
+        repository.deleteDish(dishId)
+        getDishesForRestaurant(restaurantId)
+    }
+
+    fun toggleDishAvailability(dishId: String, restaurantId: String, isAvailable: Boolean) {
+        repository.toggleDishAvailability(dishId, isAvailable)
+        getDishesForRestaurant(restaurantId)
+    }
+
+    fun saveAddress(id: String, label: String, fullAddress: String, isPrimary: Boolean) {
+        repository.saveAddress(id, label, fullAddress, isPrimary)
+        _addresses.value = repository.getAddresses()
+    }
+
+    fun deleteAddress(id: String) {
+        repository.deleteAddress(id)
+        _addresses.value = repository.getAddresses()
+    }
+
+    fun setPrimaryAddress(id: String) {
+        repository.setPrimaryAddress(id)
+        _addresses.value = repository.getAddresses()
+    }
+
+    fun getPrimaryAddress(): String {
+        return _addresses.value.find { it.isPrimary }?.fullAddress
+            ?: "Av. República del Salvador, Quito"
     }
 
     fun getFilteredRestaurants(): List<Restaurant> {

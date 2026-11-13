@@ -1,6 +1,7 @@
 package com.jagoo.app.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import com.jagoo.app.data.ActiveOrder
 import com.jagoo.app.data.CartItem
 import com.jagoo.app.data.Dish
@@ -8,6 +9,7 @@ import com.jagoo.app.data.OrderStatusStep
 import com.jagoo.app.data.OrderTimelineItem
 import com.jagoo.app.data.RestaurantData
 import com.jagoo.app.data.SelectedOption
+import com.jagoo.app.data.repository.LocalJagooRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,7 +23,9 @@ data class CartConflict(
     val specialInstructions: String = ""
 )
 
-class CartViewModel : ViewModel() {
+class CartViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val repository = LocalJagooRepository(application)
 
     private val _cartItems = MutableStateFlow<List<CartItem>>(RestaurantData.initialCartItems)
     val cartItems: StateFlow<List<CartItem>> = _cartItems.asStateFlow()
@@ -35,9 +39,11 @@ class CartViewModel : ViewModel() {
     private val _cartConflict = MutableStateFlow<CartConflict?>(null)
     val cartConflict: StateFlow<CartConflict?> = _cartConflict.asStateFlow()
 
-    // Pedido activo confirmado (se puebla al hacer "Confirmar Pedido")
     private val _activeOrder = MutableStateFlow<ActiveOrder?>(null)
     val activeOrder: StateFlow<ActiveOrder?> = _activeOrder.asStateFlow()
+
+    private val _orderHistory = MutableStateFlow<List<ActiveOrder>>(repository.getOrderHistory())
+    val orderHistory: StateFlow<List<ActiveOrder>> = _orderHistory.asStateFlow()
 
     val currentRestaurantId: String?
         get() = _cartItems.value.firstOrNull()?.restaurantId
@@ -72,7 +78,6 @@ class CartViewModel : ViewModel() {
     ) {
         val currentRestId = currentRestaurantId
         if (currentRestId != null && currentRestId != dish.restaurantId) {
-            // Conflicto de restaurante: intentar agregar plato de otro restaurante
             _cartConflict.value = CartConflict(
                 newDish = dish,
                 newRestaurantName = dish.restaurantName,
@@ -83,7 +88,6 @@ class CartViewModel : ViewModel() {
             return
         }
 
-        // Agregar normalmente
         addDishDirectly(dish, selectedOptions, specialInstructions)
     }
 
@@ -162,10 +166,6 @@ class CartViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Convierte el carrito actual en un ActiveOrder y lo coloca en [activeOrder].
-     * Después limpia el carrito para que quede vacío.
-     */
     fun confirmOrder() {
         val items = _cartItems.value
         if (items.isEmpty()) return
@@ -212,7 +212,7 @@ class CartViewModel : ViewModel() {
             )
         )
 
-        _activeOrder.value = ActiveOrder(
+        val newOrder = ActiveOrder(
             id = orderId,
             restaurantId = restId,
             restaurantName = restName,
@@ -224,12 +224,20 @@ class CartViewModel : ViewModel() {
             estimatedMinutes = 25,
             statusStep = OrderStatusStep.PREPARING,
             timelineItems = timeline,
-            courierName = "Asignando...",
-            courierVehicle = "Moto"
+            courierName = "Carlos M.",
+            courierVehicle = "Moto · PBC-1234"
         )
+
+        _activeOrder.value = newOrder
+        repository.saveOrder(newOrder)
+        _orderHistory.value = repository.getOrderHistory()
 
         _cartItems.value = emptyList()
         _couponApplied.value = false
         _couponCode.value = ""
+    }
+
+    fun refreshOrderHistory() {
+        _orderHistory.value = repository.getOrderHistory()
     }
 }

@@ -49,7 +49,9 @@ fun HomeScreen(
     val restaurants by productViewModel.restaurants.collectAsState()
     val searchQuery by productViewModel.searchQuery.collectAsState()
     val selectedCategory by productViewModel.selectedCategory.collectAsState()
+    val addresses by productViewModel.addresses.collectAsState()
 
+    val primaryAddress = addresses.find { it.isPrimary }?.fullAddress ?: "Av. República del Salvador, Quito"
     val offerRestaurants = restaurants.filter { it.isOffer }
 
     Column(
@@ -57,10 +59,11 @@ fun HomeScreen(
             .fillMaxSize()
             .background(JagooBackground)
     ) {
-        // Header amarillo con buscador "¿Qué se te antoja hoy?"
+        // Header amarillo con buscador "¿Qué se te antoja hoy?" y dirección principal
         JagooHeader(
             showSearchBar = true,
             searchQuery = searchQuery,
+            deliveryAddress = primaryAddress,
             placeholderText = "¿Qué se te antoja hoy?",
             onSearchQueryChange = { productViewModel.updateSearchQuery(it) }
         )
@@ -109,7 +112,7 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Seccion "Ofertas del día" (Scroll horizontal)
+            // Seccion "Ofertas del día"
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

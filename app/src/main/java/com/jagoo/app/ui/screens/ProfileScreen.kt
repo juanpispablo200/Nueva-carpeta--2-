@@ -9,17 +9,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.HelpOutline
@@ -27,13 +24,13 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,15 +43,22 @@ import com.jagoo.app.ui.components.JagooHeader
 import com.jagoo.app.ui.theme.JagooBackground
 import com.jagoo.app.ui.theme.JagooCardWhite
 import com.jagoo.app.ui.theme.JagooGreen
-import com.jagoo.app.ui.theme.JagooRed
 import com.jagoo.app.ui.theme.JagooTextPrimary
 import com.jagoo.app.ui.theme.JagooTextSecondary
 import com.jagoo.app.ui.theme.JagooYellow
-import com.jagoo.app.ui.theme.PillShape
 import com.jagoo.app.ui.theme.PoppinsFontFamily
+import com.jagoo.app.viewmodel.ProductViewModel
 
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(
+    productViewModel: ProductViewModel,
+    onNavigateToAddresses: () -> Unit = {},
+    onNavigateToHistory: () -> Unit = {},
+    onNavigateToAdmin: () -> Unit = {}
+) {
+    val favIds by productViewModel.favoriteRestaurantIds.collectAsState()
+    val primaryAddr = productViewModel.getPrimaryAddress()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -65,7 +69,6 @@ fun ProfileScreen() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -127,41 +130,50 @@ fun ProfileScreen() {
                 Column(
                     modifier = Modifier.padding(vertical = 8.dp)
                 ) {
-                    ProfileMenuItem(Icons.Default.Favorite, "Restaurantes Favoritos", "3 restaurantes guardados")
-                    ProfileMenuItem(Icons.Default.LocationOn, "Mis Direcciones", "Av. República del Salvador, Quito")
-                    ProfileMenuItem(Icons.Default.History, "Historial de Pedidos", "Ver pedidos anteriores")
-                    ProfileMenuItem(Icons.Default.CreditCard, "Métodos de Pago", "Efectivo / Tarjeta crédito")
-                    ProfileMenuItem(Icons.Default.Notifications, "Notificaciones", "Promociones y estado")
-                    ProfileMenuItem(Icons.Default.HelpOutline, "Centro de Ayuda", "Preguntas frecuentes y soporte")
+                    ProfileMenuItem(
+                        icon = Icons.Default.AdminPanelSettings,
+                        title = "Panel Administrador",
+                        subtitle = "Gestionar menús de restaurantes",
+                        onClick = onNavigateToAdmin
+                    )
+                    ProfileMenuItem(
+                        icon = Icons.Default.LocationOn,
+                        title = "Mis Direcciones",
+                        subtitle = primaryAddr,
+                        onClick = onNavigateToAddresses
+                    )
+                    ProfileMenuItem(
+                        icon = Icons.Default.History,
+                        title = "Historial de Pedidos",
+                        subtitle = "Ver pedidos anteriores",
+                        onClick = onNavigateToHistory
+                    )
+                    ProfileMenuItem(
+                        icon = Icons.Default.Favorite,
+                        title = "Restaurantes Favoritos",
+                        subtitle = "${favIds.size} restaurantes guardados",
+                        onClick = {}
+                    )
+                    ProfileMenuItem(
+                        icon = Icons.Default.CreditCard,
+                        title = "Métodos de Pago",
+                        subtitle = "Efectivo / Tarjeta crédito",
+                        onClick = {}
+                    )
+                    ProfileMenuItem(
+                        icon = Icons.Default.Notifications,
+                        title = "Notificaciones",
+                        subtitle = "Promociones y estado",
+                        onClick = {}
+                    )
+                    ProfileMenuItem(
+                        icon = Icons.Default.HelpOutline,
+                        title = "Centro de Ayuda",
+                        subtitle = "Preguntas frecuentes y soporte",
+                        onClick = {}
+                    )
                 }
             }
-
-            // Botón Cerrar Sesión
-            Button(
-                onClick = { /* TODO: implementar logout */ },
-                shape = PillShape,
-                colors = ButtonDefaults.buttonColors(containerColor = JagooRed.copy(alpha = 0.1f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Logout,
-                    contentDescription = "Cerrar sesión",
-                    tint = JagooRed,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Cerrar Sesión",
-                    fontFamily = PoppinsFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = JagooRed
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
@@ -170,17 +182,20 @@ fun ProfileScreen() {
 private fun ProfileMenuItem(
     icon: ImageVector,
     title: String,
-    subtitle: String
+    subtitle: String,
+    onClick: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
         ) {
             Box(
                 contentAlignment = Alignment.Center,
@@ -199,7 +214,7 @@ private fun ProfileMenuItem(
 
             Spacer(modifier = Modifier.width(14.dp))
 
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     fontFamily = PoppinsFontFamily,

@@ -53,6 +53,7 @@ fun JagooHeader(
     showSearchBar: Boolean = false,
     showBackButton: Boolean = false,
     categoryTitle: String? = null,
+    deliveryAddress: String = "Av. República del Salvador, Quito",
     searchQuery: String = "",
     placeholderText: String = "¿Qué se te antoja hoy?",
     onSearchQueryChange: (String) -> Unit = {},
@@ -152,7 +153,7 @@ fun JagooHeader(
                                     lineHeight = 10.sp
                                 )
                                 Text(
-                                    text = "Av. República del Salvador, Quito",
+                                    text = deliveryAddress,
                                     fontFamily = PoppinsFontFamily,
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 11.sp,
