@@ -60,7 +60,6 @@ private val DELETE_WIDTH = 80.dp
 @Composable
 fun SwipeToDeleteItem(
     cartItem: CartItem,
-    // mantenido por compatibilidad con CartScreen pero ya no usado
     showDeleteButton: Boolean = false,
     onQuantityChange: (Int) -> Unit,
     onDelete: () -> Unit,
@@ -78,7 +77,8 @@ fun SwipeToDeleteItem(
             },
             positionalThreshold = { total -> total * 0.4f },
             velocityThreshold = { with(density) { 100.dp.toPx() } },
-            animationSpec = tween(durationMillis = 220)
+            snapAnimationSpec = tween(durationMillis = 220),
+            decayAnimationSpec = androidx.compose.animation.core.exponentialDecay()
         )
     }
 
@@ -90,7 +90,7 @@ fun SwipeToDeleteItem(
             .height(88.dp)
             .clip(CardShape)
     ) {
-        // Fondo rojo con botón Eliminar, siempre detrás de la tarjeta
+        // Fondo rojo con botón Eliminar
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
@@ -125,20 +125,15 @@ fun SwipeToDeleteItem(
             }
         }
 
-        // Tarjeta del ítem, deslizable hacia la izquierda para revelar el botón
+        // Tarjeta deslizable
         Card(
             shape = CardShape,
             colors = CardDefaults.cardColors(containerColor = JagooCardWhite),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier
                 .fillMaxSize()
-                .offset {
-                    IntOffset(x = state.offset.roundToInt(), y = 0)
-                }
-                .anchoredDraggable(
-                    state = state,
-                    orientation = Orientation.Horizontal
-                )
+                .offset { IntOffset(x = state.offset.roundToInt(), y = 0) }
+                .anchoredDraggable(state = state, orientation = Orientation.Horizontal)
         ) {
             Row(
                 modifier = Modifier
@@ -147,7 +142,6 @@ fun SwipeToDeleteItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Imagen del plato
                 AsyncImage(
                     model = cartItem.dish.imageUrl,
                     contentDescription = cartItem.dish.name,
@@ -159,7 +153,6 @@ fun SwipeToDeleteItem(
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                // Nombre, opciones y precio
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = cartItem.dish.name,
@@ -170,7 +163,6 @@ fun SwipeToDeleteItem(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-
                     if (cartItem.selectedOptions.isNotEmpty()) {
                         Text(
                             text = cartItem.selectedOptions.joinToString { it.optionName },
@@ -190,9 +182,7 @@ fun SwipeToDeleteItem(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-
                     Spacer(modifier = Modifier.height(2.dp))
-
                     Text(
                         text = "$${String.format("%.2f", cartItem.totalPrice).replace('.', ',')}",
                         fontFamily = PoppinsFontFamily,
@@ -202,7 +192,6 @@ fun SwipeToDeleteItem(
                     )
                 }
 
-                // Selector de cantidad
                 QuantitySelector(
                     quantity = cartItem.quantity,
                     onDecrease = { onQuantityChange(cartItem.quantity - 1) },

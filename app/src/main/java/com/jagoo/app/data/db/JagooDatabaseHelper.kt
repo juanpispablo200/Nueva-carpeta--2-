@@ -492,19 +492,18 @@ class JagooDatabaseHelper(context: Context) : SQLiteOpenHelper(
 
                 list.add(
                     ActiveOrder(
-                        id = orderId,
-                        restaurantId = restId,
-                        restaurantName = restName,
+                        id                = orderId,
+                        restaurantId      = restId,
+                        restaurantName    = restName,
                         restaurantLogoUrl = logoUrl,
-                        items = emptyList(),
-                        subtotal = subtotal,
-                        deliveryFee = fee,
-                        total = total,
-                        estimatedMinutes = 25,
-                        statusStep = step,
-                        timelineItems = RestaurantData.sampleTimelineItems,
-                        courierName = "Carlos M.",
-                        courierVehicle = "Moto · PBC-1234"
+                        items             = emptyList(),
+                        subtotal          = subtotal,
+                        deliveryFee       = fee,
+                        total             = total,
+                        estimatedMinutes  = 25,
+                        statusStep        = step,
+                        timelineItems     = RestaurantData.sampleTimelineItems,
+                        courier           = null
                     )
                 )
             } while (cursor.moveToNext())

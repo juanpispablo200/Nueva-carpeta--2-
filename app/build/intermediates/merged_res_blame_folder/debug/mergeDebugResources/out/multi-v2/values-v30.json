@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.jagoo.app-mergeDebugResources-54:/values-v30/values-v30.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\Juan Pablo\\.gradle\\caches\\9.7.1\\transforms\\1aa019dd82140731a02c54ec7f3419cc\\transformed\\material3-release\\res\\values-v30\\values-v30.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "72",
+                        "endOffsets": "123"
+                    }
+                }
+            ]
+        }
+    ]
+}

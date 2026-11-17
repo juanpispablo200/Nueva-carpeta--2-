@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -16,7 +17,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.HelpOutline
@@ -54,7 +54,7 @@ fun ProfileScreen(
     productViewModel: ProductViewModel,
     onNavigateToAddresses: () -> Unit = {},
     onNavigateToHistory: () -> Unit = {},
-    onNavigateToAdmin: () -> Unit = {}
+    onLogout: () -> Unit = {}
 ) {
     val favIds by productViewModel.favoriteRestaurantIds.collectAsState()
     val primaryAddr = productViewModel.getPrimaryAddress()
@@ -131,12 +131,6 @@ fun ProfileScreen(
                     modifier = Modifier.padding(vertical = 8.dp)
                 ) {
                     ProfileMenuItem(
-                        icon = Icons.Default.AdminPanelSettings,
-                        title = "Panel Administrador",
-                        subtitle = "Gestionar menús de restaurantes",
-                        onClick = onNavigateToAdmin
-                    )
-                    ProfileMenuItem(
                         icon = Icons.Default.LocationOn,
                         title = "Mis Direcciones",
                         subtitle = primaryAddr,
@@ -173,6 +167,26 @@ fun ProfileScreen(
                         onClick = {}
                     )
                 }
+            }
+
+            // ── Botón Cerrar Sesión ───────────────────────────────────────
+            androidx.compose.material3.Button(
+                onClick = onLogout,
+                shape = com.jagoo.app.ui.theme.PillShape,
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = androidx.compose.ui.graphics.Color(0xFFD32F2F)
+                ),
+                modifier = androidx.compose.ui.Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Text(
+                    text = "Cerrar sesión",
+                    fontFamily = PoppinsFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = androidx.compose.ui.graphics.Color.White
+                )
             }
         }
     }

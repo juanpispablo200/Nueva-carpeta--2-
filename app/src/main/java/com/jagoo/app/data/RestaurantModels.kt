@@ -82,9 +82,10 @@ data class Category(
 )
 
 enum class OrderStatusStep {
-    CONFIRMED,
-    PREPARING,
-    IN_TRANSIT,
+    CONFIRMED,   // pending / accepted
+    PREPARING,   // preparing
+    READY,       // ready — listo para recoger
+    IN_TRANSIT,  // picked_up / on_the_way
     DELIVERED
 }
 
@@ -94,6 +95,12 @@ data class OrderTimelineItem(
     val step: OrderStatusStep,
     val isCompleted: Boolean,
     val isCurrent: Boolean
+)
+
+data class CourierInfo(
+    val name: String,
+    val vehicle: String,
+    val plate: String
 )
 
 data class ActiveOrder(
@@ -108,6 +115,5 @@ data class ActiveOrder(
     val estimatedMinutes: Int,
     val statusStep: OrderStatusStep,
     val timelineItems: List<OrderTimelineItem>,
-    val courierName: String,
-    val courierVehicle: String
+    val courier: CourierInfo? = null          // null hasta que se asigne repartidor
 )

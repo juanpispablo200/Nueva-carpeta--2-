@@ -543,14 +543,13 @@ object RestaurantData {
         restaurantId = "r1",
         restaurantName = "Brasa & Pan",
         restaurantLogoUrl = "https://images.unsplash.com/photo-1550547660-d9450f859349?w=300",
-        items = initialCartItems,
+        items = emptyList(),
         subtotal = 11.20,
         deliveryFee = 1.50,
         total = 12.70,
         estimatedMinutes = 18,
         statusStep = OrderStatusStep.IN_TRANSIT,
         timelineItems = sampleTimelineItems,
-        courierName = "Carlos M.",
-        courierVehicle = "Moto · PBC-1234"
+        courier = null
     )
 }
