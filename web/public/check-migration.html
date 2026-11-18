@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificar Migración - Jagoo</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .container { max-width: 600px; width: 100%; padding: 2rem; }
+        .card { background: #1e293b; border-radius: 16px; padding: 2rem; border: 1px solid #334155; }
+        h1 { color: #60a5fa; text-align: center; margin-bottom: 1rem; }
+        .test-box { background: #0f172a; padding: 1.5rem; border-radius: 12px; margin: 1.5rem 0; }
+        .result { margin-top: 1rem; padding: 1rem; border-radius: 8px; }
+        .success { background: #14532d; color: #86efac; border: 1px solid #22c55e; }
+        .error { background: #7f1d1d; color: #fca5a5; border: 1px solid #ef4444; }
+        .warning { background: #713f12; color: #fde68a; border: 1px solid #f59e0b; }
+        button { background: #3b82f6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 1rem; }
+        button:hover { background: #2563eb; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .step { margin: 2rem 0; }
+        .step h3 { color: #93c5fd; margin-bottom: 0.5rem; }
+        ol { margin-left: 1.5rem; margin-top: 0.5rem; }
+        li { margin-bottom: 0.5rem; }
+        code { background: #334155; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+        a { color: #60a5fa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🔍 Verificar Estado de Migración</h1>
+            
+            <div class="test-box">
+                <p>Haz clic para verificar si la migración está aplicada:</p>
+                <button onclick="checkMigration()" id="checkBtn">Verificar Migración</button>
+                <div id="result" class="result"></div>
+            </div>
+            
+            <div class="step">
+                <h3>Si ves ERROR (migración no aplicada):</h3>
+                <ol>
+                    <li>Abre: <a href="https://supabase.com/dashboard/project/tjgavwygdotetoatitju/sql/new" target="_blank">SQL Editor de Supabase ↗</a></li>
+                    <li>Copia TODO este SQL:</li>
+                    <textarea id="migrationSql" style="width:100%; height:200px; background:#0f172a; color:white; border:1px solid #475569; padding:1rem; border-radius:8px; font-family:monospace; margin:0.5rem 0;" readonly></textarea>
+                    <li>Pega en el SQL Editor y ejecuta (Ctrl+Enter)</li>
+                    <li>Espera 30-60 segundos</li>
+                    <li>Vuelve a verificar aquí</li>
+                </ol>
+            </div>
+            
+            <div class="step">
+                <h3>Si ves ÉXITO (migración aplicada):</h3>
+                <ol>
+                    <li>Abre: <a href="http://localhost:5173/create-admin.html" target="_blank">Crear Usuario Admin ↗</a></li>
+                    <li>Crea el usuario admin</li>
+                    <li>Ve a: <a href="http://localhost:5173/login" target="_blank">Login ↗</a></li>
+                    <li>Usa: <code>admin@jagoo.com</code> / <code>Admin123</code></li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const supabase = window.supabase.createClient(
+            'https://tjgavwygdotetoatitju.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqZ2F2d3lnZG90ZXRvYXRpdGp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ4NjA2ODgsImV4cCI6MjExMDQzNjY4OH0.e_xgPLnPAgJgpUCRPcusITh9V2xVkn_O8B_AKs5PtaI'
+        )
+        
+        // Cargar SQL de migración en el textarea
+        document.getElementById('migrationSql').value = `-- MIGRACIÓN JAGOO - Copia TODO esto
+-- Abre: https://supabase.com/dashboard/project/tjgavwygdotetoatitju/sql/new
+-- Pega y ejecuta (Ctrl+Enter)
+
+-- 1. Agregar columna is_active si no existe
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
+UPDATE profiles SET is_active = true WHERE is_active IS NULL;
+
+-- 2. Verificar (esto debería funcionar sin error)
+SELECT COUNT(*) as perfiles_con_is_active FROM profiles WHERE is_active IS NOT NULL;`
+        
+        async function checkMigration() {
+            const btn = document.getElementById('checkBtn')
+            const result = document.getElementById('result')
+            
+            btn.disabled = true
+            btn.textContent = 'Verificando...'
+            result.innerHTML = ''
+            
+            try {
+                // Test 1: Verificar columna is_active
+                const { error } = await supabase.from('profiles').select('is_active').limit(1)
+                
+                if (error) {
+                    if (error.message.includes('is_active')) {
+                        result.className = 'result error'
+                        result.innerHTML = `
+                            <h3>❌ MIGRACIÓN NO APLICADA</h3>
+                            <p>Error: <strong>${error.message}</strong></p>
+                            <p>La columna <code>is_active</code> no existe en la tabla <code>profiles</code>.</p>
+                            <p><strong>Solución:</strong> Aplica la migración siguiendo los pasos arriba.</p>
+                        `
+                    } else {
+                        result.className = 'result error'
+                        result.innerHTML = `
+                            <h3>❌ ERROR DE CONEXIÓN</h3>
+                            <p>${error.message}</p>
+                        `
+                    }
+                } else {
+                    // Test 2: Verificar más columnas
+                    const tests = ['role', 'full_name', 'phone']
+                    let allOk = true
+                    let errorMsg = ''
+                    
+                    for (const col of tests) {
+                        const { error } = await supabase.from('profiles').select(col).limit(1)
+                        if (error) {
+                            allOk = false
+                            errorMsg = `Columna ${col}: ${error.message}`
+                            break
+                        }
+                    }
+                    
+                    if (allOk) {
+                        result.className = 'result success'
+                        result.innerHTML = `
+                            <h3>✅ MIGRACIÓN APLICADA</h3>
+                            <p>Todas las columnas necesarias existen.</p>
+                            <p>Ahora puedes crear el usuario admin.</p>
+                        `
+                    } else {
+                        result.className = 'result warning'
+                        result.innerHTML = `
+                            <h3>⚠️  MIGRACIÓN PARCIAL</h3>
+                            <p>${errorMsg}</p>
+                            <p>Necesitas aplicar la migración completa.</p>
+                        `
+                    }
+                }
+            } catch (err) {
+                result.className = 'result error'
+                result.innerHTML = `<h3>❌ ERROR CRÍTICO</h3><p>${err.message}</p>`
+            }
+            
+            btn.disabled = false
+            btn.textContent = 'Verificar Migración'
+        }
+        
+        // Verificar al cargar
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(checkMigration, 500)
+        })
+    </script>
+</body>
+</html>

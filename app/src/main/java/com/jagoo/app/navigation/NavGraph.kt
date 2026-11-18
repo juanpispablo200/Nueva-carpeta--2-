@@ -16,8 +16,10 @@ import com.jagoo.app.ui.screens.OrderHistoryScreen
 import com.jagoo.app.ui.screens.OrderTrackingScreen
 import com.jagoo.app.ui.screens.ProfileScreen
 import com.jagoo.app.ui.screens.RegisterScreen
+import com.jagoo.app.ui.screens.RepartidorScreen
 import com.jagoo.app.ui.screens.RestaurantDetailScreen
 import com.jagoo.app.ui.screens.SearchScreen
+import com.jagoo.app.viewmodel.AuthState
 import com.jagoo.app.viewmodel.AuthViewModel
 import com.jagoo.app.viewmodel.CartViewModel
 import com.jagoo.app.viewmodel.ProductViewModel
@@ -42,7 +44,11 @@ fun NavGraph(
             LoginScreen(
                 authViewModel        = authViewModel,
                 onLoginSuccess       = {
-                    navController.navigate(Screen.Home.route) {
+                    val dest = when (authViewModel.state.value) {
+                        is AuthState.Repartidor -> Screen.Repartidor.route
+                        else                    -> Screen.Home.route
+                    }
+                    navController.navigate(dest) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
@@ -54,11 +60,27 @@ fun NavGraph(
             RegisterScreen(
                 authViewModel     = authViewModel,
                 onRegisterSuccess = {
-                    navController.navigate(Screen.Home.route) {
+                    val dest = when (authViewModel.state.value) {
+                        is AuthState.Repartidor -> Screen.Repartidor.route
+                        else                    -> Screen.Home.route
+                    }
+                    navController.navigate(dest) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
                 onNavigateToLogin = { navController.popBackStack() }
+            )
+        }
+
+        // ── Repartidor ───────────────────────────────────────────────────
+        composable(Screen.Repartidor.route) {
+            RepartidorScreen(
+                onLogout = {
+                    authViewModel.logout()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             )
         }
 

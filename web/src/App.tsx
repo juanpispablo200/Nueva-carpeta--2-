@@ -1,33 +1,48 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
-import { isConfigured }        from './lib/supabase'
-import LoginPage               from './pages/LoginPage'
-import AccessDeniedPage        from './pages/AccessDeniedPage'
-import RestaurantHomePage      from './pages/restaurant/RestaurantHomePage'
-import AdminHomePage           from './pages/admin/AdminHomePage'
-import ProtectedRoute          from './components/ProtectedRoute'
+import { useEffect } from 'react'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { isConfigured, supabase } from './lib/supabase'
+import LoginPage from './pages/LoginPage'
+import AccessDeniedPage from './pages/AccessDeniedPage'
+import RequireRole from './components/RequireRole'
+import { ToastProvider } from './components/common/ToastContext'
 
-// ── Pantalla de aviso cuando .env no está configurado ─────────────────────────
+// Admin
+import AdminLayout from './pages/admin/AdminLayout'
+import ResumenPage from './pages/admin/ResumenPage'
+import PedidosAdminPage from './pages/admin/PedidosAdminPage'
+import RepartidoresPage from './pages/admin/RepartidoresPage'
+import RestaurantesAdminPage from './pages/admin/RestaurantesAdminPage'
+import UsuariosAdminPage from './pages/admin/UsuariosAdminPage'
+import ReportesAdminPage from './pages/admin/ReportesAdminPage'
+import AjustesPage from './pages/admin/AjustesPage'
+import AuditLogPage from './pages/admin/AuditLogPage'
+
+// Restaurant
+import RestaurantHomePage from './pages/restaurant/RestaurantHomePage'
+
 function SetupRequired() {
   return (
-    <div className="min-h-screen bg-jagoo-bg flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-lg text-center">
+    <div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center px-4">
+      <div className="card p-8 w-full max-w-lg text-center">
         <div className="text-5xl mb-4">⚙️</div>
-        <h1 className="text-xl font-bold text-gray-800 mb-3">Configuración requerida</h1>
-        <p className="text-gray-500 text-sm mb-5">
-          Las claves de Supabase no están configuradas. Edita el archivo{' '}
-          <code className="bg-gray-100 px-1.5 py-0.5 rounded text-jagoo-green font-mono text-xs">
+        <h1 className="font-display text-xl font-bold text-[var(--color-ink)] mb-3">
+          Configuración requerida
+        </h1>
+        <p className="text-[var(--color-ink-muted)] text-sm mb-5">
+          Las claves de Supabase no están configuradas. Edita{' '}
+          <code className="bg-[var(--color-bg)] px-1.5 py-0.5 rounded-[var(--radius-md)] text-[var(--color-brand-700)] font-mono text-xs">
             web/.env
           </code>{' '}
           y agrega tus claves:
         </p>
-        <pre className="bg-gray-50 rounded-xl p-4 text-left text-xs text-gray-700 mb-5">
+        <pre className="bg-[var(--color-bg)] rounded-[var(--radius-lg)] p-4 text-left text-xs text-[var(--color-ink)] mb-5">
 {`VITE_SUPABASE_URL=https://TUPROYECTO.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...`}
         </pre>
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-[var(--color-ink-sub)]">
           Encuéntralas en{' '}
           <a href="https://supabase.com" target="_blank" rel="noopener noreferrer"
-            className="text-jagoo-green underline">
+            className="text-[var(--color-brand-700)] underline">
             supabase.com
           </a>{' '}
           → tu proyecto → Settings → API.
@@ -39,28 +54,59 @@ VITE_SUPABASE_ANON_KEY=eyJ...`}
 }
 
 export default function App() {
-  // Si las claves no están, mostrar aviso en lugar de página en blanco
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    // Escuchar cambios de autenticación globalmente
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        // Cerrar todos los canales Realtime
+        supabase.removeAllChannels()
+        navigate('/login', { replace: true })
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [navigate])
+
   if (!isConfigured) return <SetupRequired />
 
   return (
-    <Routes>
-      <Route path="/"    element={<Navigate to="/login" replace />} />
-      <Route path="/login" element={<LoginPage />} />
+    <ToastProvider>
+      <Routes>
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<LoginPage />} />
 
-      <Route path="/restaurant" element={
-        <ProtectedRoute allowedRole="restaurant">
-          <RestaurantHomePage />
-        </ProtectedRoute>
-      } />
+        <Route
+          path="/admin"
+          element={
+            <RequireRole allowedRoles={['admin']}>
+              <AdminLayout />
+            </RequireRole>
+          }
+        >
+          <Route index element={<ResumenPage />} />
+          <Route path="pedidos" element={<PedidosAdminPage />} />
+          <Route path="repartidores" element={<RepartidoresPage />} />
+          <Route path="restaurantes" element={<RestaurantesAdminPage />} />
+          <Route path="usuarios" element={<UsuariosAdminPage />} />
+          <Route path="reportes" element={<ReportesAdminPage />} />
+          <Route path="ajustes" element={<AjustesPage />} />
+          <Route path="auditoria" element={<AuditLogPage />} />
+        </Route>
 
-      <Route path="/admin" element={
-        <ProtectedRoute allowedRole="admin">
-          <AdminHomePage />
-        </ProtectedRoute>
-      } />
+        <Route
+          path="/restaurant"
+          element={
+            <RequireRole allowedRoles={['restaurant']}>
+              <RestaurantHomePage />
+            </RequireRole>
+          }
+        />
 
-      <Route path="/acceso-denegado" element={<AccessDeniedPage />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
+        <Route path="/acceso-denegado" element={<AccessDeniedPage />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </ToastProvider>
   )
 }

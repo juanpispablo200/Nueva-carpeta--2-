@@ -1,0 +1,99 @@
+/* ============================================================
+   Jagoo Design Tokens — única fuente de verdad
+   Importar en index.css; usar en todos los componentes.
+   ============================================================ */
+
+:root {
+  /* ── Color: marca ───────────────────────────────────────── */
+  --color-brand-50:  #edfaf3;
+  --color-brand-100: #d3f3e3;
+  --color-brand-200: #aae5ca;
+  --color-brand-500: #1e9870;
+  --color-brand-700: #0E5B33;   /* primario */
+  --color-brand-800: #0c4a2b;
+  --color-brand-900: #0a3d24;
+  --color-accent:    #FFD43B;   /* amarillo — solo acento */
+
+  /* ── Color: superficies ─────────────────────────────────── */
+  --color-bg:        #F6F7F2;
+  --color-surface:   #ffffff;
+  --color-border:    #E8EAE4;
+  --color-border-focus: #0E5B33;
+
+  /* ── Color: texto ───────────────────────────────────────── */
+  --color-ink:       #111816;
+  --color-ink-muted: #5a6360;
+  --color-ink-sub:   #9aa39f;
+
+  /* ── Color: estado ──────────────────────────────────────── */
+  --color-success-bg:   #D1FAE5; --color-success-text: #064E3B;
+  --color-warning-bg:   #FEF9C3; --color-warning-text: #92400E;
+  --color-error-bg:     #FEE2E2; --color-error-text:   #7F1D1D;
+  --color-info-bg:      #DBEAFE; --color-info-text:    #1E3A5F;
+  --color-preparing-bg: #DBEAFE; --color-preparing-text: #1E3A5F;
+  --color-ready-bg:     #EDE9FE; --color-ready-text:   #3B0764;
+  --color-transit-bg:   #EDE9FE; --color-transit-text: #3B0764;
+
+  /* ── Tipografía ─────────────────────────────────────────── */
+  --font-display: "Plus Jakarta Sans", sans-serif;
+  --font-body:    "DM Sans", sans-serif;
+  --text-xs:   0.75rem;    /* 12 */
+  --text-sm:   0.875rem;   /* 14 */
+  --text-base: 1rem;       /* 16 */
+  --text-lg:   1.125rem;   /* 18 */
+  --text-xl:   1.25rem;    /* 20 */
+  --text-2xl:  1.5rem;     /* 24 */
+  --text-3xl:  1.875rem;   /* 30 */
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+
+  /* ── Espaciado (múltiplos de 4px) ───────────────────────── */
+  --space-1: 0.25rem;   /* 4  */
+  --space-2: 0.5rem;    /* 8  */
+  --space-3: 0.75rem;   /* 12 */
+  --space-4: 1rem;      /* 16 */
+  --space-5: 1.25rem;   /* 20 */
+  --space-6: 1.5rem;    /* 24 */
+  --space-8: 2rem;      /* 32 */
+  --space-10: 2.5rem;   /* 40 */
+  --space-12: 3rem;     /* 48 */
+
+  /* ── Radios ─────────────────────────────────────────────── */
+  --radius-sm:   4px;
+  --radius-md:   8px;    /* inputs, badges */
+  --radius-lg:   12px;   /* cards */
+  --radius-xl:   16px;   /* modales */
+  --radius-full: 9999px; /* pills */
+
+  /* ── Sombras ─────────────────────────────────────────────── */
+  --shadow-sm:  0 1px 2px 0 rgb(0 0 0 / .05);
+  --shadow-md:  0 1px 3px 0 rgb(0 0 0 / .06), 0 1px 2px -1px rgb(0 0 0 / .06);
+  --shadow-lg:  0 4px 6px -1px rgb(0 0 0 / .08), 0 2px 4px -2px rgb(0 0 0 / .08);
+  --shadow-xl:  0 20px 60px -15px rgb(0 0 0 / .18);
+  --shadow-focus: 0 0 0 3px rgb(14 91 51 / .25);
+
+  /* ── Layout ─────────────────────────────────────────────── */
+  --sidebar-w:   224px;
+  --header-h:    56px;
+  --transition:  .15s ease;
+}
+
+/* ── Dark mode automático ────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg:       #111412;
+    --color-surface:  #1a1f1d;
+    --color-border:   #2a302d;
+    --color-ink:      #f0f4f2;
+    --color-ink-muted:#8a9490;
+    --color-ink-sub:  #4a524f;
+  }
+}
+
+/* ── Reduced motion ──────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}

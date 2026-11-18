@@ -30,6 +30,7 @@ export interface Order {
   total:                number
   status:               OrderStatus
   delivery_address:     string | null
+  courier_id:           string | null
   created_at:           string
   items?:               OrderItem[]
 }

@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,7 +29,8 @@ import com.jagoo.app.viewmodel.RepartidorViewModel
  */
 @Composable
 fun RepartidorScreen(
-    repartidorViewModel: RepartidorViewModel = viewModel()
+    repartidorViewModel: RepartidorViewModel = viewModel(),
+    onLogout: () -> Unit = {}
 ) {
     val isAvailable     by repartidorViewModel.isAvailable.collectAsState()
     val disponibles     by repartidorViewModel.pedidosDisponibles.collectAsState()
@@ -93,7 +95,6 @@ fun RepartidorScreen(
                     Text("Panel Repartidor", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold,
                         fontSize = 18.sp, color = JagooGreen)
                 }
-                // Toggle disponible
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(if (isAvailable) "Disponible" else "No disponible",
                         fontFamily = PoppinsFontFamily, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
@@ -105,6 +106,10 @@ fun RepartidorScreen(
                         colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = JagooGreen),
                         modifier = Modifier.height(24.dp)
                     )
+                    Spacer(Modifier.width(8.dp))
+                    IconButton(onClick = onLogout, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.AutoMirrored.Filled.ExitToApp, "Cerrar sesión", tint = JagooGreen)
+                    }
                 }
             }
         }

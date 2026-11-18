@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Order, OrderStatus } from '../lib/types'
 
 /**
  * useOrders — carga los pedidos de un restaurante y los mantiene
  * actualizados en tiempo real via Supabase Realtime.
+ * Reproduce sonido cuando llega un pedido nuevo.
  *
  * @param restaurantId  id del restaurante (ej: "r1")
  */
@@ -12,6 +13,7 @@ export function useOrders(restaurantId: string | null) {
   const [orders,  setOrders]  = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState<string | null>(null)
+  const prevPendingCount = useRef(0)
 
   // ── Carga inicial ───────────────────────────────────────────────────────────
   const fetchOrders = useCallback(async () => {
@@ -29,7 +31,11 @@ export function useOrders(restaurantId: string | null) {
         .order('created_at', { ascending: false })
 
       if (err) throw err
-      setOrders((data as Order[]) ?? [])
+      const newOrders = (data as Order[]) ?? []
+      setOrders(newOrders)
+
+      // Inicializar contador de pending
+      prevPendingCount.current = newOrders.filter(o => o.status === 'pending').length
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error cargando pedidos')
     } finally {
@@ -52,15 +58,26 @@ export function useOrders(restaurantId: string | null) {
           table:  'orders',
           filter: `restaurant_id=eq.${restaurantId}`,
         },
-        () => {
-          // Al cualquier cambio, recargamos la lista completa
-          // (simple y seguro; para miles de pedidos usaríamos merge parcial)
+        (payload) => {
+          // Si es INSERT, reproducir sonido
+          if (payload.eventType === 'INSERT') {
+            const newOrder = payload.new as Order
+            if (newOrder.status === 'pending') {
+              // Reproducir sonido
+              const audio = new Audio('/sounds/notification.mp3')
+              audio.play().catch(() => {}) // ignorar error si no hay permiso
+            }
+          }
+          // Recargar lista completa
           fetchOrders()
         }
       )
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
+    return () => {
+      channel.unsubscribe()
+      supabase.removeChannel(channel)
+    }
   }, [restaurantId, fetchOrders])
 
   // ── Cambiar el status de un pedido ─────────────────────────────────────────
@@ -79,3 +96,4 @@ export function useOrders(restaurantId: string | null) {
 
   return { orders, loading, error, updateStatus, refetch: fetchOrders }
 }
+

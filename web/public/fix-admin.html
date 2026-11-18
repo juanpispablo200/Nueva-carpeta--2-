@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear Admin - SOLUCIÓN RÁPIDA</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .container { max-width: 700px; width: 100%; }
+        .card { background: #1e293b; border-radius: 16px; padding: 2rem; border: 1px solid #334155; }
+        h1 { color: #60a5fa; text-align: center; margin-bottom: 0.5rem; font-size: 1.8rem; }
+        .subtitle { color: #94a3b8; text-align: center; margin-bottom: 2rem; font-size: 0.9rem; }
+        .big-btn { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; border: none; padding: 1.25rem 2rem; border-radius: 12px; font-weight: 600; cursor: pointer; font-size: 1.1rem; width: 100%; margin: 1rem 0; transition: transform 0.2s; }
+        .big-btn:hover { transform: translateY(-2px); }
+        .step { background: #0f172a; padding: 1.5rem; border-radius: 12px; margin: 1.5rem 0; border: 1px solid #334155; }
+        .step-title { color: #93c5fd; font-weight: 600; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 10px; }
+        .credentials { background: rgba(34, 197, 94, 0.1); border: 1px solid #22c55e; border-radius: 12px; padding: 1.25rem; margin: 1.5rem 0; }
+        .cred-row { display: flex; margin-bottom: 0.5rem; font-family: monospace; }
+        .cred-label { width: 100px; color: #86efac; font-weight: 600; }
+        .cred-value { color: #e2e8f0; }
+        .result { margin-top: 1.5rem; padding: 1.25rem; border-radius: 12px; display: none; }
+        .success { background: rgba(34, 197, 94, 0.1); border: 1px solid #22c55e; color: #86efac; display: block; }
+        .error { background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #fca5a5; display: block; }
+        a { color: #60a5fa; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        code { background: #334155; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🔐 Crear Usuario Admin</h1>
+            <p class="subtitle">Solución rápida al error "Email o contraseña incorrectos"</p>
+            
+            <div class="step">
+                <div class="step-title">📋 PASO 1: Copiar SQL</div>
+                <button class="big-btn" onclick="copySQL()" id="copyBtn">
+                    📋 COPIAR SQL PARA CREAR ADMIN
+                </button>
+            </div>
+            
+            <div class="step">
+                <div class="step-title">🌐 PASO 2: Abrir Supabase</div>
+                <a href="https://supabase.com/dashboard/project/tjgavwygdotetoatitju/sql/new" target="_blank">
+                    <button class="big-btn">
+                        🌐 ABRIR SQL EDITOR DE SUPABASE
+                    </button>
+                </a>
+                <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #94a3b8;">
+                    Pega el SQL copiado y ejecuta con <code>Ctrl+Enter</code>
+                </p>
+            </div>
+            
+            <div class="step">
+                <div class="step-title">✅ PASO 3: Probar Login</div>
+                <div class="credentials">
+                    <div class="cred-row">
+                        <div class="cred-label">Email:</div>
+                        <div class="cred-value">admin@jagoo.com</div>
+                    </div>
+                    <div class="cred-row">
+                        <div class="cred-label">Contraseña:</div>
+                        <div class="cred-value">Admin123</div>
+                    </div>
+                    <div class="cred-row">
+                        <div class="cred-label">URL:</div>
+                        <div class="cred-value">http://localhost:5173/login</div>
+                    </div>
+                </div>
+                <a href="http://localhost:5173/login" target="_blank">
+                    <button class="big-btn">
+                        🔐 IR A LOGIN
+                    </button>
+                </a>
+            </div>
+            
+            <div id="result" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const sql = \`-- CREAR USUARIO ADMIN - Sin errores
+-- Copia TODO esto y pégalo en Supabase SQL Editor
+
+-- 1. Limpiar usuario admin anterior si existe
+DELETE FROM profiles WHERE email = 'admin@jagoo.com';
+DELETE FROM auth.users WHERE email = 'admin@jagoo.com';
+
+-- 2. Crear usuario en auth.users
+INSERT INTO auth.users (
+  instance_id,
+  id,
+  aud,
+  role,
+  email,
+  encrypted_password,
+  email_confirmed_at,
+  invited_at,
+  confirmation_token,
+  confirmation_sent_at,
+  recovery_token,
+  recovery_sent_at,
+  email_change_token_new,
+  email_change,
+  email_change_sent_at,
+  last_sign_in_at,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  is_super_admin,
+  created_at,
+  updated_at,
+  phone,
+  phone_confirmed_at,
+  phone_change,
+  phone_change_token,
+  phone_change_sent_at,
+  email_change_token_current,
+  email_change_confirm_status,
+  banned_until,
+  reauthentication_token,
+  reauthentication_sent_at
+) VALUES (
+  '00000000-0000-0000-0000-000000000000',
+  gen_random_uuid(),
+  'authenticated',
+  'authenticated',
+  'admin@jagoo.com',
+  crypt('Admin123', gen_salt('bf')),
+  NOW(),
+  NULL,
+  '',
+  NULL,
+  '',
+  NULL,
+  '',
+  '',
+  NULL,
+  NULL,
+  '{"provider":"email","providers":["email"]}',
+  '{}',
+  NULL,
+  NOW(),
+  NOW(),
+  NULL,
+  NULL,
+  '',
+  '',
+  NULL,
+  '',
+  0,
+  NULL,
+  '',
+  NULL
+);
+
+-- 3. Crear perfil
+INSERT INTO profiles (id, full_name, phone, role, is_active, email)
+SELECT 
+  id,
+  'Administrador Principal',
+  '+593999999999',
+  'admin',
+  true,
+  'admin@jagoo.com'
+FROM auth.users 
+WHERE email = 'admin@jagoo.com';
+
+-- 4. Verificar
+SELECT 
+  'Usuario Admin Creado' as mensaje,
+  u.email,
+  p.role,
+  p.is_active
+FROM auth.users u
+JOIN profiles p ON u.id = p.id
+WHERE u.email = 'admin@jagoo.com';
+
+-- CREDENCIALES:
+-- Email: admin@jagoo.com
+-- Contraseña: Admin123
+-- URL: http://localhost:5173/login\`
+
+        function copySQL() {
+            const btn = document.getElementById('copyBtn')
+            const result = document.getElementById('result')
+            
+            navigator.clipboard.writeText(sql)
+                .then(() => {
+                    btn.innerHTML = '✅ SQL COPIADO'
+                    result.className = 'result success'
+                    result.innerHTML = \`
+                        <h3 style="margin-bottom:0.5rem;">✅ SQL copiado al portapapeles</h3>
+                        <p><strong>Siguiente paso:</strong></p>
+                        <ol style="margin-left:1.5rem; margin-top:0.5rem;">
+                            <li>Haz clic en "ABRIR SQL EDITOR DE SUPABASE"</li>
+                            <li>Pega el SQL (Ctrl+V)</li>
+                            <li>Ejecuta (Ctrl+Enter)</li>
+                            <li>Deberías ver: "Usuario Admin Creado"</li>
+                            <li>Luego haz clic en "IR A LOGIN"</li>
+                        </ol>
+                    \`
+                    
+                    setTimeout(() => {
+                        btn.innerHTML = '📋 COPIAR SQL PARA CREAR ADMIN'
+                    }, 3000)
+                })
+                .catch(err => {
+                    result.className = 'result error'
+                    result.innerHTML = \`<h3>❌ Error al copiar:</h3><p>\${err.message}</p>\`
+                })
+        }
+    </script>
+</body>
+</html>

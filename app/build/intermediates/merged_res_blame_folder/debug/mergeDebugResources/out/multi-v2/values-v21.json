@@ -4,7 +4,7 @@
             "outputFile": "com.jagoo.app-mergeDebugResources-54:/values-v21/values-v21.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Juan Pablo\\.gradle\\caches\\9.7.1\\transforms\\aac3ed371c9c5afa66fbef3cf0f8ea10\\transformed\\core-1.13.1\\res\\values-v21\\values-v21.xml",
+                    "source": "C:\\Users\\Juan Pablo\\.gradle\\caches\\8.10.2\\transforms\\530fdd85aa92cfad0672c2e18766afe9\\transformed\\core-1.13.1\\res\\values-v21\\values-v21.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,13",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4",

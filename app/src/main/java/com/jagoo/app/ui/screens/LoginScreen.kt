@@ -14,8 +14,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -68,9 +68,11 @@ fun LoginScreen(
 
     var passwordVisible by remember { mutableStateOf(false) }
 
-    // Cuando el login es exitoso, navegar a Home
+    // Navegar automáticamente según rol al autenticarse
     LaunchedEffect(state) {
-        if (state is AuthState.Customer) onLoginSuccess()
+        if (state is AuthState.Customer || state is AuthState.Repartidor) {
+            onLoginSuccess()
+        }
     }
 
     Box(
@@ -177,7 +179,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(JagooSpacing.md))
 
-            // ── Mensaje de error ──────────────────────────────────────────
+            // ── Mensaje de error (incluye desactivación de cuenta) ────────
             if (state is AuthState.Error) {
                 Text(
                     text = (state as AuthState.Error).message,
@@ -185,6 +187,7 @@ fun LoginScreen(
                     fontSize = 13.sp,
                     color = Color(0xFFD32F2F),
                     textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(JagooSpacing.sm))

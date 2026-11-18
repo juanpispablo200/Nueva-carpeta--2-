@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arreglar Permisos Repartidores</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .container { max-width: 700px; width: 100%; }
+        .card { background: #1e293b; border-radius: 16px; padding: 2rem; border: 1px solid #334155; }
+        h1 { color: #f87171; text-align: center; margin-bottom: 0.5rem; font-size: 1.8rem; }
+        .subtitle { color: #94a3b8; text-align: center; margin-bottom: 2rem; font-size: 0.9rem; }
+        .error-box { background: rgba(239, 68, 68, 0.1); border: 2px solid #ef4444; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; }
+        .error-title { color: #fca5a5; font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 600; }
+        .big-btn { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; border: none; padding: 1.25rem 2rem; border-radius: 12px; font-weight: 600; cursor: pointer; font-size: 1.1rem; width: 100%; margin: 1rem 0; transition: transform 0.2s; }
+        .big-btn:hover { transform: translateY(-2px); }
+        .step { background: #0f172a; padding: 1.5rem; border-radius: 12px; margin: 1.5rem 0; border: 1px solid #334155; }
+        .step-title { color: #93c5fd; font-weight: 600; margin-bottom: 0.75rem; font-size: 1.1rem; }
+        .step-num { display: inline-block; width: 28px; height: 28px; background: #3b82f6; border-radius: 50%; text-align: center; line-height: 28px; margin-right: 8px; }
+        .result { margin-top: 1.5rem; padding: 1.25rem; border-radius: 12px; display: none; }
+        .success { background: rgba(34, 197, 94, 0.1); border: 1px solid #22c55e; color: #86efac; display: block; }
+        a { color: #60a5fa; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        code { background: #334155; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; }
+        ol { margin-left: 1.5rem; margin-top: 0.5rem; line-height: 1.8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>⚠️ Error de Permisos</h1>
+            <p class="subtitle">Solución: "Error al crear el perfil del repartidor"</p>
+            
+            <div class="error-box">
+                <div class="error-title">🔒 Problema Identificado</div>
+                <p>Las políticas RLS (Row Level Security) de Supabase están bloqueando la creación de perfiles de repartidores por parte del admin.</p>
+            </div>
+            
+            <div class="step">
+                <div class="step-title">
+                    <span class="step-num">1</span>
+                    Copiar SQL de Corrección
+                </div>
+                <button class="big-btn" onclick="copySQL()" id="copyBtn">
+                    📋 COPIAR SQL DE CORRECCIÓN
+                </button>
+            </div>
+            
+            <div class="step">
+                <div class="step-title">
+                    <span class="step-num">2</span>
+                    Ejecutar en Supabase
+                </div>
+                <a href="https://supabase.com/dashboard/project/tjgavwygdotetoatitju/sql/new" target="_blank">
+                    <button class="big-btn">
+                        🌐 ABRIR SQL EDITOR
+                    </button>
+                </a>
+                <ol style="color: #94a3b8; font-size: 0.9rem; margin-top: 1rem;">
+                    <li>Pega el SQL copiado</li>
+                    <li>Ejecuta con <code>Ctrl+Enter</code></li>
+                    <li>Espera a que termine (5-10 segundos)</li>
+                    <li>Deberías ver: "✅ Permisos corregidos"</li>
+                </ol>
+            </div>
+            
+            <div class="step">
+                <div class="step-title">
+                    <span class="step-num">3</span>
+                    Probar Crear Repartidor
+                </div>
+                <a href="http://localhost:5173/admin/repartidores" target="_blank">
+                    <button class="big-btn" style="background: linear-gradient(135deg, #22c55e, #16a34a);">
+                        ✅ IR A REPARTIDORES
+                    </button>
+                </a>
+                <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 1rem;">
+                    Después de aplicar la corrección, intenta crear un repartidor nuevamente. Debería funcionar sin errores.
+                </p>
+            </div>
+            
+            <div id="result" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const sql = \`-- ARREGLAR PERMISOS PARA CREAR REPARTIDORES
+-- Copia TODO esto en Supabase SQL Editor
+
+-- 1. Crear función para que admin pueda crear perfiles
+CREATE OR REPLACE FUNCTION create_courier_profile(
+  p_id uuid,
+  p_full_name text,
+  p_phone text,
+  p_email text
+)
+RETURNS void AS $$
+BEGIN
+  INSERT INTO profiles (id, full_name, phone, role, is_active, email)
+  VALUES (p_id, p_full_name, p_phone, 'repartidor', true, p_email)
+  ON CONFLICT (id) DO UPDATE SET
+    full_name = p_full_name,
+    phone = p_phone,
+    role = 'repartidor',
+    is_active = true,
+    email = p_email;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 2. Dar permiso de ejecución
+GRANT EXECUTE ON FUNCTION create_courier_profile(uuid, text, text, text) TO authenticated;
+
+-- 3. Actualizar política de INSERT en profiles
+DROP POLICY IF EXISTS profiles_insert_admin ON profiles;
+CREATE POLICY profiles_insert_admin ON profiles FOR INSERT
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+    OR
+    id = auth.uid()
+  );
+
+-- 4. Verificar
+SELECT 'Políticas de profiles:' as tipo, 
+       policyname, cmd
+FROM pg_policies 
+WHERE tablename = 'profiles'
+ORDER BY policyname;
+
+SELECT '✅ Permisos corregidos. Ahora el admin puede crear repartidores.' as resultado;\`
+
+        function copySQL() {
+            const btn = document.getElementById('copyBtn')
+            const result = document.getElementById('result')
+            
+            navigator.clipboard.writeText(sql)
+                .then(() => {
+                    btn.innerHTML = '✅ SQL COPIADO'
+                    result.className = 'result success'
+                    result.innerHTML = \`
+                        <h3 style="margin-bottom:1rem; font-size: 1.2rem;">✅ SQL copiado al portapapeles</h3>
+                        <p style="margin-bottom:1rem;"><strong>Siguiente paso:</strong></p>
+                        <ol>
+                            <li>Haz clic en "ABRIR SQL EDITOR"</li>
+                            <li>Pega el SQL (Ctrl+V)</li>
+                            <li>Ejecuta (Ctrl+Enter)</li>
+                            <li>Espera a ver: "✅ Permisos corregidos"</li>
+                            <li>Vuelve a "IR A REPARTIDORES" y crea uno nuevo</li>
+                        </ol>
+                        <p style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #334155;">
+                            <strong>Después de aplicar:</strong> Intenta crear un repartidor con cualquier email nuevo (ej: <code>repartidor2@jagoo.com</code>)
+                        </p>
+                    \`
+                    
+                    setTimeout(() => {
+                        btn.innerHTML = '📋 COPIAR SQL DE CORRECCIÓN'
+                    }, 3000)
+                })
+                .catch(err => {
+                    result.className = 'result error'
+                    result.style.display = 'block'
+                    result.style.background = 'rgba(239, 68, 68, 0.1)'
+                    result.style.border = '1px solid #ef4444'
+                    result.style.color = '#fca5a5'
+                    result.innerHTML = \`<h3>❌ Error al copiar:</h3><p>\${err.message}</p>\`
+                })
+        }
+    </script>
+</body>
+</html>

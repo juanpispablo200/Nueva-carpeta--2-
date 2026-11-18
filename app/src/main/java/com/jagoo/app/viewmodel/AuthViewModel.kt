@@ -3,6 +3,7 @@ package com.jagoo.app.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.jagoo.app.data.UserRole
 import com.jagoo.app.data.remote.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
@@ -13,19 +14,24 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 sealed class AuthState {
     object Idle       : AuthState()
     object Loading    : AuthState()
     object Customer   : AuthState()
+    object Repartidor : AuthState()
     data class WrongRole(val role: String) : AuthState()
     data class Error(val message: String)  : AuthState()
     object LoggedOut  : AuthState()
 }
 
 @Serializable
-private data class ProfileRole(val role: String = "customer")
+private data class ProfileRole(
+    val role: String = UserRole.CUSTOMER,
+    @SerialName("is_active") val isActive: Boolean = true
+)
 
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -60,10 +66,24 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 resolveRole()
             } catch (e: TimeoutCancellationException) {
-                // Tiempo de espera — asumir sin sesión
                 _state.value = AuthState.LoggedOut
             } catch (e: Exception) {
                 _state.value = AuthState.LoggedOut
+            }
+        }
+    }
+
+    // ── Validar perfil y estado activo al regresar a primer plano ────────────
+    fun validateSessionOnResume() {
+        if (auth.currentUserOrNull() == null) return
+        viewModelScope.launch {
+            try {
+                withTimeout(5_000L) {
+                    auth.refreshCurrentSession()
+                }
+                resolveRole()
+            } catch (_: Exception) {
+                resolveRole()
             }
         }
     }
@@ -114,7 +134,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 }
-                // Login automático tras registro
                 try {
                     withTimeout(8_000L) {
                         auth.signInWith(Email) {
@@ -144,7 +163,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // ── Rol ───────────────────────────────────────────────────────────────────
+    // ── Validación de Rol e is_active ─────────────────────────────────────────
     private suspend fun resolveRole() {
         val userId = auth.currentUserOrNull()?.id ?: run {
             _state.value = AuthState.LoggedOut
@@ -156,21 +175,28 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     .select { filter { eq("id", userId) } }
                     .decodeSingle<ProfileRole>()
             }
+
+            // Si el perfil está marcado como inactivo (is_active = false)
+            if (!profile.isActive) {
+                try { auth.signOut() } catch (_: Exception) {}
+                _state.value = AuthState.Error("Tu cuenta ha sido desactivada")
+                return
+            }
+
             _state.value = when (profile.role) {
-                "customer"   -> AuthState.Customer
-                "repartidor" -> AuthState.Customer   // repartidor → misma app cliente por ahora
-                else         -> AuthState.WrongRole(profile.role)
+                UserRole.CUSTOMER   -> AuthState.Customer
+                UserRole.REPARTIDOR -> AuthState.Repartidor
+                else                -> AuthState.WrongRole(profile.role)
             }
         } catch (e: Exception) {
-            // Perfil no encontrado todavía (trigger aún procesando) → asumir customer
-            _state.value = AuthState.Customer
+            // Perfil null o no encontrado -> hacer signOut y notificar desactivación
+            try { auth.signOut() } catch (_: Exception) {}
+            _state.value = AuthState.Error("Tu cuenta ha sido desactivada")
         }
     }
 
-    // ── Limpiar error → volver a LoggedOut para que los botones funcionen ─────
     fun clearError() { _state.value = AuthState.LoggedOut }
 
-    // ── Mensajes amigables ────────────────────────────────────────────────────
     private fun friendlyError(e: Exception): String {
         val msg = e.message?.lowercase() ?: ""
         return when {

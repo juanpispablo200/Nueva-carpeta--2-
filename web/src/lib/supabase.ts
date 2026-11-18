@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
+export type UserRole = 'customer' | 'restaurant' | 'admin' | 'repartidor'
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 
@@ -18,13 +20,12 @@ export const supabase = createClient(
   isConfigured ? supabaseKey  : 'placeholder-key'
 )
 
-export type UserRole = 'customer' | 'restaurant' | 'admin'
-
 export interface Profile {
   id:        string
   full_name: string
   phone:     string
   role:      UserRole
+  is_active: boolean
 }
 
 export async function getMyProfile(): Promise<Profile | null> {
@@ -34,7 +35,7 @@ export async function getMyProfile(): Promise<Profile | null> {
     if (!user) return null
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, phone, role')
+      .select('id, full_name, phone, role, is_active')
       .eq('id', user.id)
       .single()
     if (error) return null

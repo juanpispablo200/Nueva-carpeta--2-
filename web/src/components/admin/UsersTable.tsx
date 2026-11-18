@@ -29,14 +29,14 @@ export default function UsersTable() {
     u.full_name.toLowerCase().includes(search.toLowerCase()) ||
     u.id.toLowerCase().includes(search.toLowerCase())
   )
-  const pages  = Math.ceil(filtered.length / PAGE)
-  const paged  = filtered.slice(page * PAGE, page * PAGE + PAGE)
+  const pages = Math.ceil(filtered.length / PAGE)
+  const paged = filtered.slice(page * PAGE, page * PAGE + PAGE)
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-in">
       <SectionHeader title={`Usuarios${users.length ? ` (${users.length})` : ''}`}>
         <div className="relative w-full sm:w-64">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--c-ink-subtle)]" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink-sub)]" />
           <Input
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(0) }}
@@ -56,42 +56,43 @@ export default function UsersTable() {
           <EmptyState icon={<Users size={20}/>} title="Sin usuarios" description="Nadie se ha registrado aún." />
         ) : (
           <>
-            <div className="table-wrap">
-              <table className="data-table">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr>
-                    <th>Usuario</th>
-                    <th className="hidden md:table-cell">ID</th>
-                    <th>Rol</th>
-                    <th>Cambiar rol</th>
+                  <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg)]">
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-ink-sub)] uppercase tracking-wide">Usuario</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-ink-sub)] uppercase tracking-wide hidden md:table-cell">ID</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-ink-sub)] uppercase tracking-wide">Rol</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-ink-sub)] uppercase tracking-wide">Cambiar rol</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paged.map(u => (
-                    <tr key={u.id}>
-                      <td>
+                    <tr key={u.id} className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-bg)] transition-colors">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-[var(--c-success-bg)] text-[var(--c-success-ink)] flex items-center justify-center text-xs font-bold shrink-0">
+                          <div className="w-9 h-9 rounded-full bg-[var(--color-brand-100)] text-[var(--color-brand-700)] flex items-center justify-center text-xs font-bold shrink-0">
                             {(u.full_name?.[0] ?? '?').toUpperCase()}
                           </div>
-                          <span className="font-medium text-[var(--c-ink)]">{u.full_name || '—'}</span>
+                          <span className="font-medium text-[var(--color-ink)]">{u.full_name || '—'}</span>
                         </div>
                       </td>
-                      <td className="font-mono text-xs text-[var(--c-ink-subtle)] hidden md:table-cell">{u.id.slice(0,8)}…</td>
-                      <td><StatusBadge status={u.role} /></td>
-                      <td>
+                      <td className="px-4 py-3 font-mono text-xs text-[var(--color-ink-sub)] hidden md:table-cell">{u.id.slice(0,8)}…</td>
+                      <td className="px-4 py-3"><StatusBadge status={u.role} /></td>
+                      <td className="px-4 py-3">
                         <select
                           value={u.role}
                           disabled={saving === u.id}
                           onChange={e => changeRole(u.id, e.target.value as Profile['role'])}
                           aria-label={`Cambiar rol de ${u.full_name || 'usuario'}`}
-                          className="text-xs border border-[var(--c-border)] rounded-[var(--radius-input)] px-3 py-2 bg-[var(--c-surface)] text-[var(--c-ink)] focus-visible:outline-2 focus-visible:outline-[var(--c-brand)] disabled:opacity-50 cursor-pointer"
+                          className="text-xs border border-[var(--color-border)] rounded-[var(--radius-md)] px-3 py-2 bg-[var(--color-surface)] text-[var(--color-ink)] focus-visible:outline-2 focus-visible:outline-[var(--color-brand-700)] disabled:opacity-50 cursor-pointer"
                         >
                           <option value="customer">cliente</option>
                           <option value="restaurant">restaurante</option>
                           <option value="admin">admin</option>
+                          <option value="repartidor">repartidor</option>
                         </select>
-                        {saving === u.id && <span className="ml-2 text-xs text-[var(--c-ink-subtle)]">Guardando…</span>}
+                        {saving === u.id && <span className="ml-2 text-xs text-[var(--color-ink-sub)]">Guardando…</span>}
                       </td>
                     </tr>
                   ))}
@@ -101,8 +102,8 @@ export default function UsersTable() {
 
             {/* Paginación */}
             {pages > 1 && (
-              <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--c-border)]">
-                <p className="text-xs text-[var(--c-ink-subtle)]">
+              <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--color-border)]">
+                <p className="text-xs text-[var(--color-ink-sub)]">
                   {page * PAGE + 1}–{Math.min((page + 1) * PAGE, filtered.length)} de {filtered.length}
                 </p>
                 <div className="flex gap-1">
