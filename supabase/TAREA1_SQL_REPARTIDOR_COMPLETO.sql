@@ -1,13 +1,21 @@
 -- ============================================================================
--- JAGOO — TAREA 1: SQL COMPLETO E IDEMPOTENTE PARA REPARTIDORES
+-- JAGOO — TAREA 1: SQL COMPLETO, IDEMPOTENTE Y CORREGIDO PARA REPARTIDORES
 -- ============================================================================
 -- Tabla elegida para is_available: PROFILES (profiles.is_available)
 -- Columna elegida para el repartidor en orders: COURIER_ID (orders.courier_id)
 -- ============================================================================
 
--- ── 1. MIGRACIÓN Y ESTANDARIZACIÓN DE COLUMNA COURIER_ID EN ORDERS ───────────
+-- ── 1. RESPALDO DE ORDERS Y ESTANDARIZACIÓN DE COLUMNA COURIER_ID ───────────
 DO $$
 BEGIN
+    -- Crear respaldo de seguridad si existe repartidor_id
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'orders' AND column_name = 'repartidor_id'
+    ) THEN
+        EXECUTE 'CREATE TABLE IF NOT EXISTS public.orders_backup_repartidor_id AS SELECT id, repartidor_id, courier_id FROM public.orders;';
+    END IF;
+
     -- Agregar courier_id si no existe
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
@@ -16,12 +24,13 @@ BEGIN
         ALTER TABLE public.orders ADD COLUMN courier_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
     END IF;
 
-    -- Si existía repartidor_id, migrar los datos a courier_id
+    -- Migrar datos de repartidor_id a courier_id si existía
     IF EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'orders' AND column_name = 'repartidor_id'
     ) THEN
         UPDATE public.orders SET courier_id = repartidor_id WHERE courier_id IS NULL AND repartidor_id IS NOT NULL;
+        ALTER TABLE public.orders DROP COLUMN repartidor_id;
     END IF;
 
     -- Agregar is_available en profiles si no existe
@@ -30,6 +39,14 @@ BEGIN
         WHERE table_name = 'profiles' AND column_name = 'is_available'
     ) THEN
         ALTER TABLE public.profiles ADD COLUMN is_available BOOLEAN NOT NULL DEFAULT FALSE;
+    END IF;
+
+    -- Agregar is_active en profiles si no existe
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'profiles' AND column_name = 'is_active'
+    ) THEN
+        ALTER TABLE public.profiles ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE;
     END IF;
 END $$;
 
@@ -69,7 +86,7 @@ ON public.order_declines FOR ALL
 USING (courier_id = auth.uid())
 WITH CHECK (courier_id = auth.uid());
 
--- ── 4. TABLA AUDIT_LOG (para registro de eventos) ─────────────────────────
+-- ── 4. TABLA AUDIT_LOG ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.audit_log (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_id UUID,
@@ -101,38 +118,51 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- ── 6. TRIGGER DE VALIDACIÓN DE TRANSICIÓN DE ESTADOS EN ORDERS ───────────
+-- Flujo permitido: pending -> accepted/confirmed -> preparing -> ready -> picked_up -> on_the_way -> delivered
+-- Cancelled está permitido desde cualquier estado excepto delivered o cancelled
 CREATE OR REPLACE FUNCTION public.validate_order_status_transition()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Si el estado no cambia, ignorar
     IF OLD.status = NEW.status THEN
         RETURN NEW;
     END IF;
 
-    -- Validar transiciones permitidas
+    -- Cancelled permitido antes de delivered
+    IF NEW.status = 'cancelled' THEN
+        IF OLD.status IN ('delivered', 'cancelled') THEN
+            RAISE EXCEPTION 'No se puede cancelar un pedido entregado o ya cancelado.';
+        END IF;
+        RETURN NEW;
+    END IF;
+
+    -- Validar transiciones exactas
     CASE OLD.status
         WHEN 'pending' THEN
-            IF NEW.status NOT IN ('confirmed', 'cancelled') THEN
+            IF NEW.status NOT IN ('accepted', 'confirmed', 'preparing') THEN
+                RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
+            END IF;
+        WHEN 'accepted' THEN
+            IF NEW.status NOT IN ('confirmed', 'preparing') THEN
                 RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
             END IF;
         WHEN 'confirmed' THEN
-            IF NEW.status NOT IN ('preparing', 'cancelled') THEN
+            IF NEW.status NOT IN ('preparing', 'ready') THEN
                 RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
             END IF;
         WHEN 'preparing' THEN
-            IF NEW.status NOT IN ('ready', 'cancelled') THEN
+            IF NEW.status NOT IN ('ready') THEN
                 RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
             END IF;
         WHEN 'ready' THEN
-            IF NEW.status NOT IN ('picked_up', 'on_the_way', 'cancelled') THEN
+            IF NEW.status NOT IN ('picked_up', 'on_the_way') THEN
                 RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
             END IF;
         WHEN 'picked_up' THEN
-            IF NEW.status NOT IN ('on_the_way', 'cancelled') THEN
+            IF NEW.status NOT IN ('on_the_way') THEN
                 RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
             END IF;
         WHEN 'on_the_way' THEN
-            IF NEW.status NOT IN ('delivered', 'cancelled') THEN
+            IF NEW.status NOT IN ('delivered') THEN
                 RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
             END IF;
         WHEN 'delivered' THEN
@@ -158,16 +188,30 @@ CREATE OR REPLACE FUNCTION public.restrict_courier_updates()
 RETURNS TRIGGER AS $$
 DECLARE
     v_role TEXT;
+    v_is_accepting TEXT;
 BEGIN
     v_role := public.get_my_role();
 
-    -- Si el actor es repartidor, bloquear modificación de columnas sensibles
     IF v_role = 'repartidor' THEN
+        v_is_accepting := current_setting('app.accepting_order', true);
+
+        -- Si la llamada proviene de accept_order()
+        IF v_is_accepting = 'on' THEN
+            IF OLD.courier_id IS NOT NULL OR NEW.courier_id != auth.uid() THEN
+                RAISE EXCEPTION 'Un repartidor solo puede asignarse a un pedido libre.';
+            END IF;
+        ELSE
+            -- Si NO viene de accept_order, el repartidor no puede cambiar courier_id
+            IF OLD.courier_id IS DISTINCT FROM NEW.courier_id THEN
+                RAISE EXCEPTION 'Un repartidor no puede cambiar directamente el repartidor asignado.';
+            END IF;
+        END IF;
+
+        -- Bloquear modificación de cualquier otra columna sensible
         IF OLD.subtotal IS DISTINCT FROM NEW.subtotal OR
            OLD.total IS DISTINCT FROM NEW.total OR
            OLD.customer_id IS DISTINCT FROM NEW.customer_id OR
            OLD.restaurant_id IS DISTINCT FROM NEW.restaurant_id OR
-           OLD.courier_id IS DISTINCT FROM NEW.courier_id OR
            OLD.delivery_address IS DISTINCT FROM NEW.delivery_address THEN
             RAISE EXCEPTION 'Un repartidor solo puede cambiar el estado (status) de su pedido asignado.';
         END IF;
@@ -183,7 +227,7 @@ BEFORE UPDATE ON public.orders
 FOR EACH ROW
 EXECUTE FUNCTION public.restrict_courier_updates();
 
--- ── 8. FUNCIÓN RPC ATÓMICA ACCEPT_ORDER ───────────────────────────────────
+-- ── 8. FUNCIÓN RPC ATÓMICA ACCEPT_ORDER (SECURITY DEFINER + AUDIT LOG) ────
 CREATE OR REPLACE FUNCTION public.accept_order(p_order_id UUID)
 RETURNS VOID AS $$
 DECLARE
@@ -199,7 +243,6 @@ BEGIN
         RAISE EXCEPTION 'Usuario no autenticado';
     END IF;
 
-    -- Verificar perfil, rol, is_active e is_available
     SELECT role, COALESCE(is_active, true), COALESCE(is_available, false)
     INTO v_role, v_is_active, v_is_available
     FROM public.profiles
@@ -217,6 +260,9 @@ BEGIN
         RAISE EXCEPTION 'Debes estar en modo Disponible para aceptar pedidos';
     END IF;
 
+    -- Activar flag de sesión temporal para permitir que el trigger acepte el cambio de courier_id de NULL a auth.uid()
+    PERFORM set_config('app.accepting_order', 'on', true);
+
     -- Actualización atómica en orders
     UPDATE public.orders
     SET courier_id = v_user_id,
@@ -232,7 +278,7 @@ BEGIN
         RAISE EXCEPTION 'Pedido ya tomado por otro repartidor';
     END IF;
 
-    -- Registrar evento en audit_log
+    -- Registrar en audit_log
     INSERT INTO public.audit_log (order_id, actor_id, action, details)
     VALUES (
         p_order_id,
@@ -246,7 +292,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 REVOKE ALL ON FUNCTION public.accept_order(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.accept_order(UUID) TO authenticated;
 
--- ── 9. POLÍTICAS RLS PARA ORDERS ──────────────────────────────────────────
+-- ── 9. POLÍTICAS RLS IDEMPOTENTES PARA ORDERS ──────────────────────────────
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "orders_courier_select" ON public.orders;
@@ -292,19 +338,4 @@ WITH CHECK (
     )
 );
 
--- ── 10. BLOQUE DE VERIFICACIÓN AUTOMÁTICO DE TAREA 1 ──────────────────────
-DO $$
-DECLARE
-    v_test_rest_id UUID := gen_random_uuid();
-    v_test_cust_id UUID := gen_random_uuid();
-    v_test_driver1_id UUID := gen_random_uuid();
-    v_test_driver2_id UUID := gen_random_uuid();
-    v_test_order_id UUID := gen_random_uuid();
-    v_err_msg TEXT;
-    v_success BOOLEAN;
-BEGIN
-    -- Limpiar temporalmente si fuera necesario para prueba estricta
-    RAISE NOTICE 'Iniciando pruebas automáticas de Tarea 1...';
-END $$;
-
-SELECT '✅ TAREA 1 SQL Configurada correctamente' AS resultado;
+SELECT '✅ TAREA 1 SQL Completo configurado exitosamente' AS resultado;
