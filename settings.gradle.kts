@@ -4,7 +4,6 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
-    // Fijar AGP — impide que Android Studio lo actualice solo
     resolutionStrategy {
         eachPlugin {
             if (requested.id.namespace == "com.android") {
@@ -23,3 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Jagoo"
 include(":app")
+include(":driver")

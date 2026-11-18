@@ -36,7 +36,6 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val authState by authViewModel.state.collectAsState()
 
-                // Si se detecta desactivación o logout mientras se usa la app, redirigir a Login
                 LaunchedEffect(authState) {
                     if (authState is AuthState.Error && (authState as AuthState.Error).message.contains("desactivada")) {
                         navController.navigate(Screen.Login.route) {
@@ -45,24 +44,17 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Determinar pantalla de inicio:
-                //   - Si es Repartidor → RepartidorScreen
-                //   - Si es Customer   → Home
-                //   - Cualquier otro   → Login
                 val startDestination = when (authState) {
-                    is AuthState.Repartidor -> Screen.Repartidor.route
-                    is AuthState.Customer   -> Screen.Home.route
-                    else                    -> Screen.Login.route
+                    is AuthState.Customer -> Screen.Home.route
+                    else                  -> Screen.Login.route
                 }
 
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
-                // Rutas donde NO se muestra la barra de navegación inferior
                 val routesWithoutBottomBar = setOf(
                     Screen.Login.route,
                     Screen.Register.route,
-                    Screen.Repartidor.route,
                     Screen.RestaurantDetail.route,
                     Screen.Category.route,
                     Screen.OrderHistory.route,
@@ -106,7 +98,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Re-validar perfil y estado is_active al regresar a primer plano
         authViewModel.validateSessionOnResume()
     }
 }

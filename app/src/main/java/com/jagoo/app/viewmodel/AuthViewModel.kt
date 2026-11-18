@@ -21,7 +21,6 @@ sealed class AuthState {
     object Idle       : AuthState()
     object Loading    : AuthState()
     object Customer   : AuthState()
-    object Repartidor : AuthState()
     data class WrongRole(val role: String) : AuthState()
     data class Error(val message: String)  : AuthState()
     object LoggedOut  : AuthState()
@@ -56,7 +55,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     init { checkExistingSession() }
 
-    // ── Verificar sesión al arrancar — con timeout de 5s ─────────────────────
     private fun checkExistingSession() {
         viewModelScope.launch {
             _state.value = AuthState.Loading
@@ -73,7 +71,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // ── Validar perfil y estado activo al regresar a primer plano ────────────
     fun validateSessionOnResume() {
         if (auth.currentUserOrNull() == null) return
         viewModelScope.launch {
@@ -88,7 +85,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // ── Login ─────────────────────────────────────────────────────────────────
     fun login() {
         if (_email.value.isBlank() || _password.value.isBlank()) {
             _state.value = AuthState.Error("Completa email y contraseña")
@@ -112,7 +108,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // ── Registro ──────────────────────────────────────────────────────────────
     fun register() {
         if (_email.value.isBlank() || _password.value.isBlank()) {
             _state.value = AuthState.Error("Completa email y contraseña")
@@ -152,7 +147,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // ── Logout ────────────────────────────────────────────────────────────────
     fun logout() {
         viewModelScope.launch {
             try { auth.signOut() } catch (_: Exception) {}
@@ -163,7 +157,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // ── Validación de Rol e is_active ─────────────────────────────────────────
     private suspend fun resolveRole() {
         val userId = auth.currentUserOrNull()?.id ?: run {
             _state.value = AuthState.LoggedOut
@@ -176,20 +169,23 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     .decodeSingle<ProfileRole>()
             }
 
-            // Si el perfil está marcado como inactivo (is_active = false)
             if (!profile.isActive) {
                 try { auth.signOut() } catch (_: Exception) {}
                 _state.value = AuthState.Error("Tu cuenta ha sido desactivada")
                 return
             }
 
+            if (profile.role == UserRole.REPARTIDOR) {
+                try { auth.signOut() } catch (_: Exception) {}
+                _state.value = AuthState.Error("Acceso reservado a la aplicación Jagoo Driver")
+                return
+            }
+
             _state.value = when (profile.role) {
-                UserRole.CUSTOMER   -> AuthState.Customer
-                UserRole.REPARTIDOR -> AuthState.Repartidor
-                else                -> AuthState.WrongRole(profile.role)
+                UserRole.CUSTOMER -> AuthState.Customer
+                else              -> AuthState.WrongRole(profile.role)
             }
         } catch (e: Exception) {
-            // Perfil null o no encontrado -> hacer signOut y notificar desactivación
             try { auth.signOut() } catch (_: Exception) {}
             _state.value = AuthState.Error("Tu cuenta ha sido desactivada")
         }

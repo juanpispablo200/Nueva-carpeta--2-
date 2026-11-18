@@ -68,9 +68,8 @@ fun LoginScreen(
 
     var passwordVisible by remember { mutableStateOf(false) }
 
-    // Navegar automáticamente según rol al autenticarse
     LaunchedEffect(state) {
-        if (state is AuthState.Customer || state is AuthState.Repartidor) {
+        if (state is AuthState.Customer) {
             onLoginSuccess()
         }
     }
@@ -179,7 +178,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(JagooSpacing.md))
 
-            // ── Mensaje de error (incluye desactivación de cuenta) ────────
+            // ── Mensaje de error ──────────────────────────────────────────
             if (state is AuthState.Error) {
                 Text(
                     text = (state as AuthState.Error).message,
