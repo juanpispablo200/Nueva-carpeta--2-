@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { UtensilsCrossed, BookOpen, LogOut, TrendingUp, Bell } from 'lucide-react'
-import { supabase, getMyProfile } from '../../lib/supabase'
-import type { Profile, Restaurant, Order } from '../../lib/types'
+import { UtensilsCrossed, BookOpen, Bell } from 'lucide-react'
+import { supabase, getMyProfile, type Profile } from '../../lib/supabase'
+import type { Restaurant, Order } from '../../lib/types'
 import { useOrders }   from '../../hooks/useOrders'
 import OrderCard       from '../../components/restaurant/OrderCard'
 import MenuEditor      from '../../components/restaurant/MenuEditor'
-import { EmptyState, AppShell } from '../../components/ui'
+import { EmptyState } from '../../components/ui'
+import AppLayout from '../../components/layout/AppLayout'
 
 type Tab = 'pedidos' | 'menu'
 
@@ -14,28 +14,32 @@ type Tab = 'pedidos' | 'menu'
 const COLUMNS: { status: Order['status'][]; label: string; color: string }[] = [
   { status: ['pending'],            label: 'Nuevos',    color: 'border-yellow-400' },
   { status: ['accepted','preparing'],label: 'En cocina', color: 'border-blue-400'   },
-  { status: ['on_the_way'],         label: 'En camino', color: 'border-violet-400'  },
-  { status: ['delivered'],          label: 'Entregados', color: 'border-emerald-400' },
+  { status: ['ready'],              label: 'Listos',    color: 'border-purple-400'  },
+  { status: ['picked_up','on_the_way'],label: 'En camino', color: 'border-violet-400'  },
 ]
 
 export default function RestaurantHomePage() {
-  const navigate = useNavigate()
   const [profile,    setProfile]    = useState<Profile | null>(null)
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
   const [tab,        setTab]        = useState<Tab>('pedidos')
+  const [loading,    setLoading]    = useState(true)
 
   useEffect(() => {
     async function load() {
       const p = await getMyProfile()
-      if (!p) return
-      setProfile(p as Profile)
+      if (!p) {
+        setLoading(false)
+        return
+      }
+      setProfile(p)
       const { data } = await supabase.from('restaurants').select('*').eq('owner_id', p.id).single()
       if (data) setRestaurant(data as Restaurant)
+      setLoading(false)
     }
     load()
   }, [])
 
-  const { orders, loading, updateStatus } = useOrders(restaurant?.id ?? null)
+  const { orders, loading: ordersLoading, updateStatus } = useOrders(restaurant?.id ?? null)
   const pendingCount = orders.filter(o => o.status === 'pending').length
 
   // Notificación cuando llega pedido nuevo
@@ -51,117 +55,83 @@ export default function RestaurantHomePage() {
     setRestaurant(r => r ? { ...r, is_open: !r.is_open } : r)
   }
 
-  async function handleLogout() {
-    await supabase.auth.signOut()
-    navigate('/login', { replace: true })
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-[var(--color-bg)]">
+        <div className="skeleton w-64 h-48" />
+      </div>
+    )
   }
 
-  const NAV: { key: Tab; label: string; icon: typeof UtensilsCrossed }[] = [
-    { key: 'pedidos', label: 'Pedidos', icon: UtensilsCrossed },
-    { key: 'menu',    label: 'Menú',    icon: BookOpen         },
-  ]
-
   return (
-    <AppShell
-      sidebar={
-        <>
-          {/* Logo */}
-          <div className="px-5 py-5 border-b border-[var(--c-border)]">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-[var(--c-brand)] flex items-center justify-center">
-                <TrendingUp size={16} color="#fff" strokeWidth={2.5}/>
-              </div>
-              <div>
-                <p className="font-display font-bold text-sm text-[var(--c-ink)] leading-tight truncate max-w-[120px]">
-                  {restaurant?.name ?? 'Mi Restaurante'}
-                </p>
-                <p className="text-[11px] text-[var(--c-ink-subtle)]">Restaurante</p>
-              </div>
-            </div>
-          </div>
+    <AppLayout role="restaurant" userName={restaurant?.name ?? 'Restaurante'}>
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6">
+        <button onClick={() => setTab('pedidos')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium transition-all ${
+            tab === 'pedidos'
+              ? 'bg-[var(--color-brand-700)] text-white'
+              : 'bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] border border-[var(--color-border)]'
+          }`}
+        >
+          <UtensilsCrossed size={16}/>
+          Pedidos
+          {pendingCount > 0 && (
+            <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-1.5 py-0.5 rounded-[var(--radius-full)] leading-none">
+              {pendingCount}
+            </span>
+          )}
+        </button>
+        <button onClick={() => setTab('menu')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium transition-all ${
+            tab === 'menu'
+              ? 'bg-[var(--color-brand-700)] text-white'
+              : 'bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] border border-[var(--color-border)]'
+          }`}
+        >
+          <BookOpen size={16}/>
+          Menú
+        </button>
+      </div>
 
-          {/* Nav */}
-          <nav className="flex-1 px-3 py-4 space-y-0.5">
-            {NAV.map(({ key, label, icon: Icon }) => (
-              <button key={key} onClick={() => setTab(key)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-input)] text-sm font-medium transition-colors
-                  ${tab === key ? 'bg-[var(--c-brand)] text-white' : 'text-[var(--c-ink-muted)] hover:bg-[var(--c-bg)] hover:text-[var(--c-ink)]'}`}
-              >
-                <Icon size={16} strokeWidth={2}/>
-                {label}
-                {key === 'pedidos' && pendingCount > 0 && (
-                  <span className="ml-auto bg-yellow-400 text-yellow-900 text-xs font-bold px-1.5 py-0.5 rounded-pill leading-none">
-                    {pendingCount}
-                  </span>
-                )}
-              </button>
-            ))}
-          </nav>
-
-          {/* Estado del local */}
-          <div className="px-4 py-3 border-t border-[var(--c-border)]">
-            <div className="flex items-center justify-between mb-3 px-1">
-              <p className="text-xs font-semibold text-[var(--c-ink-muted)]">Estado</p>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" checked={restaurant?.is_open ?? false}
-                  onChange={toggleOpen} className="sr-only peer" disabled={!restaurant}/>
-                <div className="w-9 h-5 bg-[var(--c-border)] rounded-full peer-checked:bg-[var(--c-brand)] transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"/>
-              </label>
-            </div>
-            <p className={`text-xs font-bold px-1 ${restaurant?.is_open ? 'text-emerald-600' : 'text-red-500'}`}>
-              {restaurant?.is_open ? '● Recibiendo pedidos' : '● Pausado'}
-            </p>
-          </div>
-
-          {/* User */}
-          <div className="px-3 py-3 border-t border-[var(--c-border)]">
-            <button onClick={handleLogout}
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--c-ink-muted)] hover:text-red-600 hover:bg-red-50 rounded-[var(--radius-input)] transition-colors">
-              <LogOut size={14} strokeWidth={2}/>
-              Cerrar sesión
-            </button>
-          </div>
-        </>
-      }
-    >
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-[var(--c-surface)]/90 backdrop-blur border-b border-[var(--c-border)] px-6 py-4 flex items-center justify-between">
-        <h1 className="font-display text-xl font-bold text-[var(--c-ink)]">
-          {tab === 'pedidos' ? 'Pedidos' : 'Menú'}
-        </h1>
-        {tab === 'pedidos' && pendingCount > 0 && (
-          <div className="flex items-center gap-2 text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 px-3 py-1.5 rounded-pill">
-            <Bell size={14}/>
-            {pendingCount} nuevo{pendingCount > 1 ? 's' : ''}
-          </div>
-        )}
-      </header>
+      {/* Estado abierto/cerrado */}
+      <div className="card p-4 mb-6 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold text-[var(--color-ink)] mb-1">Estado del restaurante</p>
+          <p className={`text-xs font-bold ${restaurant?.is_open ? 'text-emerald-600' : 'text-red-500'}`}>
+            {restaurant?.is_open ? '● Recibiendo pedidos' : '● Pausado'}
+          </p>
+        </div>
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" checked={restaurant?.is_open ?? false}
+            onChange={toggleOpen} className="sr-only peer" disabled={!restaurant}/>
+          <div className="w-11 h-6 bg-[var(--color-border)] rounded-[var(--radius-full)] peer-checked:bg-[var(--color-brand-700)] transition-colors after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5"/>
+        </label>
+      </div>
 
       {/* Contenido */}
       {tab === 'pedidos' ? (
-        loading ? (
+        ordersLoading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="w-8 h-8 border-4 border-[var(--c-brand)] border-t-transparent rounded-full animate-spin"/>
+            <div className="skeleton w-64 h-48"/>
           </div>
-        ) : orders.filter(o => !['cancelled'].includes(o.status)).length === 0 ? (
-          <div className="p-8">
-            <EmptyState icon={<UtensilsCrossed size={20}/>}
-              title="Sin pedidos activos"
-              description="Los pedidos nuevos aparecerán aquí en tiempo real."
-            />
-          </div>
+        ) : orders.filter(o => !['cancelled','delivered'].includes(o.status)).length === 0 ? (
+          <EmptyState icon={<UtensilsCrossed size={20}/>}
+            title="Sin pedidos activos"
+            description="Los pedidos nuevos aparecerán aquí en tiempo real."
+          />
         ) : (
           /* ── Kanban ─────────────────────────────────────────────── */
-          <div className="flex gap-4 p-6 overflow-x-auto min-h-[calc(100vh-80px)] items-start">
+          <div className="flex gap-4 overflow-x-auto min-h-[500px] items-start pb-4">
             {COLUMNS.map(col => {
               const colOrders = orders.filter(o => col.status.includes(o.status))
               return (
-                <div key={col.label} className={`kanban-col flex-shrink-0 border-t-4 ${col.color} rounded-card bg-[var(--c-bg)]`}>
+                <div key={col.label} className={`kanban-col border-t-4 ${col.color} rounded-[var(--radius-lg)] bg-[var(--color-surface)] shadow-[var(--shadow-md)]`}>
                   {/* Col header */}
                   <div className="px-4 pt-3 pb-2 flex items-center justify-between">
-                    <p className="font-display font-bold text-sm text-[var(--c-ink)]">{col.label}</p>
+                    <p className="font-display font-bold text-sm text-[var(--color-ink)]">{col.label}</p>
                     {colOrders.length > 0 && (
-                      <span className="text-xs font-bold bg-[var(--c-surface)] border border-[var(--c-border)] px-2 py-0.5 rounded-pill text-[var(--c-ink-muted)]">
+                      <span className="text-xs font-bold bg-[var(--color-bg)] border border-[var(--color-border)] px-2 py-0.5 rounded-[var(--radius-full)] text-[var(--color-ink-muted)]">
                         {colOrders.length}
                       </span>
                     )}
@@ -169,7 +139,7 @@ export default function RestaurantHomePage() {
                   {/* Cards */}
                   <div className="px-3 pb-4 space-y-3">
                     {colOrders.length === 0 ? (
-                      <p className="text-xs text-center text-[var(--c-ink-subtle)] py-6">Vacío</p>
+                      <p className="text-xs text-center text-[var(--color-ink-sub)] py-6">Vacío</p>
                     ) : colOrders.map(order => (
                       <OrderCard key={order.id} order={order}
                         onAdvance={(id, s) => updateStatus(id, s)}
@@ -183,7 +153,7 @@ export default function RestaurantHomePage() {
           </div>
         )
       ) : (
-        <div className="p-6 max-w-3xl">
+        <div className="max-w-3xl">
           {restaurant ? (
             <MenuEditor restaurantId={restaurant.id} />
           ) : (
@@ -194,6 +164,6 @@ export default function RestaurantHomePage() {
           )}
         </div>
       )}
-    </AppShell>
+    </AppLayout>
   )
 }
