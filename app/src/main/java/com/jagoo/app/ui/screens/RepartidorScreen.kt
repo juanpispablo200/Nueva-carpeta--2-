@@ -1,5 +1,7 @@
 package com.jagoo.app.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,7 +28,9 @@ import com.jagoo.app.viewmodel.RepartidorViewModel
 
 /**
  * RepartidorScreen — pantalla principal del repartidor.
- * Muestra: toggle disponible, pedidos disponibles, mis pedidos activos.
+ * Muestra: toggle disponible, pedidos disponibles en tiempo real, mis pedidos activos,
+ * apertura de mapas (Google Maps Intent), llamada telefónica a cliente/restaurante
+ * y avance estricto de estados (picked_up ➔ on_the_way ➔ delivered).
  */
 @Composable
 fun RepartidorScreen(
@@ -41,22 +46,21 @@ fun RepartidorScreen(
     var pedidoDetalle   by remember { mutableStateOf<OrderResumen?>(null) }
     var errorDialog     by remember { mutableStateOf<String?>(null) }
 
-    // Mostrar error en Snackbar
     LaunchedEffect(error) {
         if (error != null) { errorDialog = error; repartidorViewModel.clearError() }
     }
 
-    // Diálogo de error
+    // Diálogo de error / rechazo de transición por base de datos
     errorDialog?.let { msg ->
         AlertDialog(
             onDismissRequest = { errorDialog = null },
-            title = { Text("Aviso", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold) },
+            title = { Text("Aviso de Pedido", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold) },
             text  = { Text(msg, fontFamily = PoppinsFontFamily) },
             confirmButton = { TextButton(onClick = { errorDialog = null }) { Text("OK", color = JagooGreen) } }
         )
     }
 
-    // Pantalla detalle
+    // Pantalla de detalle de pedido
     pedidoDetalle?.let { pedido ->
         RepartidorDetalleScreen(
             pedido          = pedido,
@@ -87,18 +91,30 @@ fun RepartidorScreen(
                 .background(JagooYellow)
                 .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.TwoWheeler, "Repartidor", tint = JagooGreen, modifier = Modifier.size(22.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Panel Repartidor", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp, color = JagooGreen)
+                    Text(
+                        "Panel Repartidor",
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = JagooGreen
+                    )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (isAvailable) "Disponible" else "No disponible",
-                        fontFamily = PoppinsFontFamily, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                        color = if (isAvailable) JagooGreen else Color.Gray)
+                    Text(
+                        if (isAvailable) "Disponible" else "No disponible",
+                        fontFamily = PoppinsFontFamily,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isAvailable) JagooGreen else Color.Gray
+                    )
                     Spacer(Modifier.width(6.dp))
                     Switch(
                         checked = isAvailable,
@@ -126,29 +142,36 @@ fun RepartidorScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-
-            // ── Mis pedidos activos ─────────────────────────────────────────
+            // ── Mis pedidos activos en tiempo real ──────────────────────────
             if (misPedidos.isNotEmpty()) {
                 item {
-                    Text("Mis pedidos activos (${misPedidos.size})",
-                        fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp, color = JagooTextPrimary)
+                    Text(
+                        "Mis pedidos activos (${misPedidos.size})",
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = JagooTextPrimary
+                    )
                 }
                 items(misPedidos) { pedido ->
                     PedidoCard(
-                        pedido      = pedido,
-                        isMyOrder   = true,
-                        onClick     = { pedidoDetalle = pedido }
+                        pedido    = pedido,
+                        isMyOrder = true,
+                        onClick   = { pedidoDetalle = pedido }
                     )
                 }
                 item { Spacer(Modifier.height(4.dp)) }
             }
 
-            // ── Pedidos disponibles ─────────────────────────────────────────
+            // ── Pedidos disponibles (en tiempo real) ────────────────────────
             item {
-                Text("Pedidos disponibles (${disponibles.size})",
-                    fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp, color = JagooTextPrimary)
+                Text(
+                    "Pedidos disponibles (${disponibles.size})",
+                    fontFamily = PoppinsFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = JagooTextPrimary
+                )
             }
 
             if (disponibles.isEmpty()) {
@@ -158,25 +181,39 @@ fun RepartidorScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.CheckCircle, null, tint = JagooGreen.copy(alpha = 0.4f),
-                                modifier = Modifier.size(48.dp))
+                            Icon(
+                                Icons.Default.CheckCircle, null,
+                                tint = JagooGreen.copy(alpha = 0.4f),
+                                modifier = Modifier.size(48.dp)
+                            )
                             Spacer(Modifier.height(8.dp))
-                            Text("No hay pedidos listos ahora",
-                                fontFamily = PoppinsFontFamily, fontSize = 14.sp, color = JagooTextMuted)
+                            Text(
+                                "No hay pedidos listos ahora",
+                                fontFamily = PoppinsFontFamily,
+                                fontSize = 14.sp,
+                                color = JagooTextMuted
+                            )
                         }
                     }
                 }
             } else {
                 items(disponibles) { pedido ->
-                    PedidoCard(pedido = pedido, isMyOrder = false, onClick = { pedidoDetalle = pedido })
+                    PedidoCard(
+                        pedido    = pedido,
+                        isMyOrder = false,
+                        onClick   = { pedidoDetalle = pedido }
+                    )
                 }
             }
 
             item {
-                TextButton(onClick = { repartidorViewModel.cargarPedidos() }, modifier = Modifier.fillMaxWidth()) {
+                TextButton(
+                    onClick = { repartidorViewModel.cargarPedidos() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Icon(Icons.Default.Refresh, null, tint = JagooGreen, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Actualizar", fontFamily = PoppinsFontFamily, color = JagooGreen, fontSize = 13.sp)
+                    Text("Actualizar pedidos", fontFamily = PoppinsFontFamily, color = JagooGreen, fontSize = 13.sp)
                 }
             }
         }
@@ -198,12 +235,22 @@ private fun PedidoCard(pedido: OrderResumen, isMyOrder: Boolean, onClick: () -> 
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(pedido.restaurantName, fontFamily = PoppinsFontFamily,
-                    fontWeight = FontWeight.Bold, fontSize = 14.sp, color = JagooTextPrimary)
+                Text(
+                    pedido.restaurantName,
+                    fontFamily = PoppinsFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = JagooTextPrimary
+                )
                 pedido.deliveryAddress?.let {
                     Spacer(Modifier.height(2.dp))
-                    Text(it, fontFamily = PoppinsFontFamily, fontSize = 11.sp,
-                        color = JagooTextSecondary, maxLines = 1)
+                    Text(
+                        it,
+                        fontFamily = PoppinsFontFamily,
+                        fontSize = 11.sp,
+                        color = JagooTextSecondary,
+                        maxLines = 1
+                    )
                 }
                 Spacer(Modifier.height(4.dp))
                 Box(
@@ -214,16 +261,21 @@ private fun PedidoCard(pedido: OrderResumen, isMyOrder: Boolean, onClick: () -> 
                 ) {
                     Text(
                         text = if (isMyOrder) statusLabel(pedido.status) else "Listo para recoger",
-                        fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold,
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.Bold,
                         fontSize = 10.sp,
                         color = if (isMyOrder) JagooGreen else JagooTextPrimary
                     )
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("$${String.format("%.2f", pedido.total).replace('.', ',')}",
-                    fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp, color = JagooGreen)
+                Text(
+                    "$${String.format("%.2f", pedido.total).replace('.', ',')}",
+                    fontFamily = PoppinsFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = JagooGreen
+                )
                 Spacer(Modifier.height(4.dp))
                 Icon(Icons.Default.ChevronRight, null, tint = Color.Gray, modifier = Modifier.size(18.dp))
             }
@@ -239,40 +291,186 @@ private fun RepartidorDetalleScreen(
     onCambiarEstado: (String) -> Unit,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+
+    fun abrirMapa(direccion: String) {
+        try {
+            val uri = Uri.parse("geo:0,0?q=${Uri.encode(direccion)}")
+            val intent = Intent(Intent.ACTION_VIEW, uri)
+            intent.setPackage("com.google.android.apps.maps")
+            if (intent.resolveActivity(context.packageManager) != null) {
+                context.startActivity(intent)
+            } else {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode(direccion)}")))
+            }
+        } catch (_: Exception) {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode(direccion)}")))
+        }
+    }
+
+    fun llamarTelefono(numero: String) {
+        try {
+            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${numero.replace(" ", "")}"))
+            context.startActivity(intent)
+        } catch (_: Exception) {}
+    }
+
     Column(modifier = Modifier.fillMaxSize().background(JagooBackground)) {
         // Header
         Row(
-            modifier = Modifier.fillMaxWidth().background(JagooYellow)
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(JagooYellow)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack,
-                modifier = Modifier.size(36.dp).clip(CircleShape).background(Color.White)) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.size(36.dp).clip(CircleShape).background(Color.White)
+            ) {
                 Icon(Icons.Default.ArrowBack, "Volver", tint = JagooGreen, modifier = Modifier.size(20.dp))
             }
             Spacer(Modifier.width(10.dp))
-            Text("Detalle del pedido", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold,
-                fontSize = 17.sp, color = JagooGreen)
+            Text(
+                "Detalle del pedido #${pedido.id}",
+                fontFamily = PoppinsFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+                color = JagooGreen
+            )
         }
 
-        LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Tarjeta Info Restaurante y Cliente
             item {
-                Card(shape = RoundedCornerShape(16.dp),
+                Card(
+                    shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     elevation = CardDefaults.cardElevation(2.dp),
-                    modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        InfoRow(Icons.Default.Restaurant, "Restaurante", pedido.restaurantName)
-                        pedido.deliveryAddress?.let { InfoRow(Icons.Default.LocationOn, "Entregar en", it) }
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Restaurante + Botón llamar
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            InfoRow(Icons.Default.Restaurant, "Restaurante", pedido.restaurantName)
+                            pedido.restaurantPhone?.let { phone ->
+                                IconButton(
+                                    onClick = { llamarTelefono(phone) },
+                                    modifier = Modifier.size(36.dp).clip(CircleShape).background(JagooYellow.copy(alpha = 0.4f))
+                                ) {
+                                    Icon(Icons.Default.Phone, "Llamar restaurante", tint = JagooGreen, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f))
+
+                        // Cliente + Botón llamar
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            InfoRow(Icons.Default.Person, "Cliente", pedido.customerName ?: "Cliente Jagoo")
+                            pedido.customerPhone?.let { phone ->
+                                IconButton(
+                                    onClick = { llamarTelefono(phone) },
+                                    modifier = Modifier.size(36.dp).clip(CircleShape).background(JagooYellow.copy(alpha = 0.4f))
+                                ) {
+                                    Icon(Icons.Default.Phone, "Llamar cliente", tint = JagooGreen, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f))
+
+                        // Dirección de Entrega + Botón Mapa
+                        pedido.deliveryAddress?.let { address ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                InfoRow(Icons.Default.LocationOn, "Entregar en", address)
+                                Button(
+                                    onClick = { abrirMapa(address) },
+                                    shape = CircleShape,
+                                    colors = ButtonDefaults.buttonColors(containerColor = JagooGreen),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                    modifier = Modifier.height(34.dp)
+                                ) {
+                                    Icon(Icons.Default.Map, null, tint = Color.White, modifier = Modifier.size(14.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Mapa", fontFamily = PoppinsFontFamily, fontSize = 11.sp, color = Color.White)
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f))
+
                         InfoRow(Icons.Default.AttachMoney, "Total", "$${String.format("%.2f", pedido.total).replace('.', ',')}")
                         InfoRow(Icons.Default.Info, "Estado", statusLabel(pedido.status))
                     }
                 }
             }
 
-            // Acciones según estado
+            // Lista de Platos / Ítems
+            if (pedido.items.isNotEmpty()) {
+                item {
+                    Text(
+                        "Productos del pedido",
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = JagooTextPrimary
+                    )
+                }
+                items(pedido.items) { item ->
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(1.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "${item.quantity}x  ${item.dishName}",
+                                fontFamily = PoppinsFontFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp,
+                                color = JagooTextPrimary,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                "$${String.format("%.2f", item.unitPrice * item.quantity).replace('.', ',')}",
+                                fontFamily = PoppinsFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = JagooGreen
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Botones de acción según el estado actual
             item {
-                if (!isMyOrder && pedido.status == "ready") {
+                Spacer(Modifier.height(8.dp))
+                if (!isMyOrder && (pedido.status == "ready" || pedido.status == "picked_up")) {
                     Button(
                         onClick = onAceptar,
                         shape = CircleShape,
@@ -281,8 +479,13 @@ private fun RepartidorDetalleScreen(
                     ) {
                         Icon(Icons.Default.CheckCircle, null, tint = JagooGreen, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Aceptar pedido", fontFamily = PoppinsFontFamily,
-                            fontWeight = FontWeight.Bold, fontSize = 16.sp, color = JagooGreen)
+                        Text(
+                            "Aceptar pedido",
+                            fontFamily = PoppinsFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = JagooGreen
+                        )
                     }
                 } else if (isMyOrder) {
                     val (nextStatus, nextLabel) = nextAction(pedido.status)
@@ -293,8 +496,13 @@ private fun RepartidorDetalleScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = JagooYellow),
                             modifier = Modifier.fillMaxWidth().height(52.dp)
                         ) {
-                            Text(nextLabel, fontFamily = PoppinsFontFamily,
-                                fontWeight = FontWeight.Bold, fontSize = 16.sp, color = JagooGreen)
+                            Text(
+                                nextLabel,
+                                fontFamily = PoppinsFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = JagooGreen
+                            )
                         }
                     }
                 }
@@ -305,13 +513,18 @@ private fun RepartidorDetalleScreen(
 
 @Composable
 private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
         Icon(icon, label, tint = JagooGreen, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Column {
             Text(label, fontFamily = PoppinsFontFamily, fontSize = 10.sp, color = JagooTextSecondary)
-            Text(value, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp, color = JagooTextPrimary)
+            Text(
+                value,
+                fontFamily = PoppinsFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                color = JagooTextPrimary
+            )
         }
     }
 }
@@ -325,7 +538,8 @@ private fun statusLabel(status: String) = when (status) {
 }
 
 private fun nextAction(status: String): Pair<String?, String> = when (status) {
-    "picked_up"  -> "on_the_way" to "Marcar en camino"
-    "on_the_way" -> "delivered"  to "Marcar como entregado"
+    "ready"      -> "on_the_way" to "Marcar en camino 🚴"
+    "picked_up"  -> "on_the_way" to "Marcar en camino 🚴"
+    "on_the_way" -> "delivered"  to "Marcar como entregado 📦"
     else         -> null to ""
 }

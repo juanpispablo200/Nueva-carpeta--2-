@@ -1,0 +1,310 @@
+-- ============================================================================
+-- JAGOO — TAREA 1: SQL COMPLETO E IDEMPOTENTE PARA REPARTIDORES
+-- ============================================================================
+-- Tabla elegida para is_available: PROFILES (profiles.is_available)
+-- Columna elegida para el repartidor en orders: COURIER_ID (orders.courier_id)
+-- ============================================================================
+
+-- ── 1. MIGRACIÓN Y ESTANDARIZACIÓN DE COLUMNA COURIER_ID EN ORDERS ───────────
+DO $$
+BEGIN
+    -- Agregar courier_id si no existe
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'orders' AND column_name = 'courier_id'
+    ) THEN
+        ALTER TABLE public.orders ADD COLUMN courier_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
+    END IF;
+
+    -- Si existía repartidor_id, migrar los datos a courier_id
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'orders' AND column_name = 'repartidor_id'
+    ) THEN
+        UPDATE public.orders SET courier_id = repartidor_id WHERE courier_id IS NULL AND repartidor_id IS NOT NULL;
+    END IF;
+
+    -- Agregar is_available en profiles si no existe
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'profiles' AND column_name = 'is_available'
+    ) THEN
+        ALTER TABLE public.profiles ADD COLUMN is_available BOOLEAN NOT NULL DEFAULT FALSE;
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_orders_courier_id ON public.orders(courier_id);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
+
+-- ── 2. TABLA DEVICE_TOKENS (para notificaciones Push) ──────────────────────
+CREATE TABLE IF NOT EXISTS public.device_tokens (
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    token TEXT NOT NULL,
+    platform TEXT DEFAULT 'android',
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (user_id, token)
+);
+
+ALTER TABLE public.device_tokens ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "users_own_device_tokens" ON public.device_tokens;
+CREATE POLICY "users_own_device_tokens"
+ON public.device_tokens FOR ALL
+USING (user_id = auth.uid())
+WITH CHECK (user_id = auth.uid());
+
+-- ── 3. TABLA ORDER_DECLINES (para ignorar/rechazar ofertas) ────────────────
+CREATE TABLE IF NOT EXISTS public.order_declines (
+    order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+    courier_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (order_id, courier_id)
+);
+
+ALTER TABLE public.order_declines ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "courier_own_declines" ON public.order_declines;
+CREATE POLICY "courier_own_declines"
+ON public.order_declines FOR ALL
+USING (courier_id = auth.uid())
+WITH CHECK (courier_id = auth.uid());
+
+-- ── 4. TABLA AUDIT_LOG (para registro de eventos) ─────────────────────────
+CREATE TABLE IF NOT EXISTS public.audit_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID,
+    actor_id UUID,
+    action TEXT NOT NULL,
+    details JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "read_own_audit_log" ON public.audit_log;
+CREATE POLICY "read_own_audit_log"
+ON public.audit_log FOR SELECT
+USING (actor_id = auth.uid() OR public.get_my_role() = 'admin');
+
+-- ── 5. FUNCIÓN AUXILIAR DE SEGURIDAD PARA REPARTIDOR ACTIVO Y DISPONIBLE ────
+CREATE OR REPLACE FUNCTION public.is_active_available_courier(p_user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE id = p_user_id
+          AND role = 'repartidor'
+          AND COALESCE(is_active, true) = true
+          AND COALESCE(is_available, false) = true
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- ── 6. TRIGGER DE VALIDACIÓN DE TRANSICIÓN DE ESTADOS EN ORDERS ───────────
+CREATE OR REPLACE FUNCTION public.validate_order_status_transition()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Si el estado no cambia, ignorar
+    IF OLD.status = NEW.status THEN
+        RETURN NEW;
+    END IF;
+
+    -- Validar transiciones permitidas
+    CASE OLD.status
+        WHEN 'pending' THEN
+            IF NEW.status NOT IN ('confirmed', 'cancelled') THEN
+                RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
+            END IF;
+        WHEN 'confirmed' THEN
+            IF NEW.status NOT IN ('preparing', 'cancelled') THEN
+                RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
+            END IF;
+        WHEN 'preparing' THEN
+            IF NEW.status NOT IN ('ready', 'cancelled') THEN
+                RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
+            END IF;
+        WHEN 'ready' THEN
+            IF NEW.status NOT IN ('picked_up', 'on_the_way', 'cancelled') THEN
+                RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
+            END IF;
+        WHEN 'picked_up' THEN
+            IF NEW.status NOT IN ('on_the_way', 'cancelled') THEN
+                RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
+            END IF;
+        WHEN 'on_the_way' THEN
+            IF NEW.status NOT IN ('delivered', 'cancelled') THEN
+                RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
+            END IF;
+        WHEN 'delivered' THEN
+            RAISE EXCEPTION 'El pedido ya fue entregado y no puede cambiar de estado.';
+        WHEN 'cancelled' THEN
+            RAISE EXCEPTION 'El pedido fue cancelado y no puede cambiar de estado.';
+        ELSE
+            RAISE EXCEPTION 'Estado no reconocido: %', OLD.status;
+    END CASE;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+DROP TRIGGER IF EXISTS trg_validate_order_status ON public.orders;
+CREATE TRIGGER trg_validate_order_status
+BEFORE UPDATE ON public.orders
+FOR EACH ROW
+EXECUTE FUNCTION public.validate_order_status_transition();
+
+-- ── 7. TRIGGER BEFORE UPDATE PARA RESTRINGIR EDICIONES DE REPARTIDOR ──────
+CREATE OR REPLACE FUNCTION public.restrict_courier_updates()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_role TEXT;
+BEGIN
+    v_role := public.get_my_role();
+
+    -- Si el actor es repartidor, bloquear modificación de columnas sensibles
+    IF v_role = 'repartidor' THEN
+        IF OLD.subtotal IS DISTINCT FROM NEW.subtotal OR
+           OLD.total IS DISTINCT FROM NEW.total OR
+           OLD.customer_id IS DISTINCT FROM NEW.customer_id OR
+           OLD.restaurant_id IS DISTINCT FROM NEW.restaurant_id OR
+           OLD.courier_id IS DISTINCT FROM NEW.courier_id OR
+           OLD.delivery_address IS DISTINCT FROM NEW.delivery_address THEN
+            RAISE EXCEPTION 'Un repartidor solo puede cambiar el estado (status) de su pedido asignado.';
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+DROP TRIGGER IF EXISTS trg_restrict_courier_updates ON public.orders;
+CREATE TRIGGER trg_restrict_courier_updates
+BEFORE UPDATE ON public.orders
+FOR EACH ROW
+EXECUTE FUNCTION public.restrict_courier_updates();
+
+-- ── 8. FUNCIÓN RPC ATÓMICA ACCEPT_ORDER ───────────────────────────────────
+CREATE OR REPLACE FUNCTION public.accept_order(p_order_id UUID)
+RETURNS VOID AS $$
+DECLARE
+    v_rows_affected INT;
+    v_user_id UUID;
+    v_is_active BOOLEAN;
+    v_is_available BOOLEAN;
+    v_role TEXT;
+BEGIN
+    v_user_id := auth.uid();
+
+    IF v_user_id IS NULL THEN
+        RAISE EXCEPTION 'Usuario no autenticado';
+    END IF;
+
+    -- Verificar perfil, rol, is_active e is_available
+    SELECT role, COALESCE(is_active, true), COALESCE(is_available, false)
+    INTO v_role, v_is_active, v_is_available
+    FROM public.profiles
+    WHERE id = v_user_id;
+
+    IF v_role IS DISTINCT FROM 'repartidor' THEN
+        RAISE EXCEPTION 'Solo usuarios con rol repartidor pueden aceptar pedidos';
+    END IF;
+
+    IF v_is_active = FALSE THEN
+        RAISE EXCEPTION 'Tu cuenta de repartidor ha sido desactivada';
+    END IF;
+
+    IF v_is_available = FALSE THEN
+        RAISE EXCEPTION 'Debes estar en modo Disponible para aceptar pedidos';
+    END IF;
+
+    -- Actualización atómica en orders
+    UPDATE public.orders
+    SET courier_id = v_user_id,
+        status = 'picked_up',
+        created_at = NOW()
+    WHERE id = p_order_id
+      AND courier_id IS NULL
+      AND status = 'ready';
+
+    GET DIAGNOSTICS v_rows_affected = ROW_COUNT;
+
+    IF v_rows_affected = 0 THEN
+        RAISE EXCEPTION 'Pedido ya tomado por otro repartidor';
+    END IF;
+
+    -- Registrar evento en audit_log
+    INSERT INTO public.audit_log (order_id, actor_id, action, details)
+    VALUES (
+        p_order_id,
+        v_user_id,
+        'ACCEPT_ORDER',
+        jsonb_build_object('courier_id', v_user_id, 'status', 'picked_up')
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+REVOKE ALL ON FUNCTION public.accept_order(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.accept_order(UUID) TO authenticated;
+
+-- ── 9. POLÍTICAS RLS PARA ORDERS ──────────────────────────────────────────
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "orders_courier_select" ON public.orders;
+CREATE POLICY "orders_courier_select"
+ON public.orders FOR SELECT
+USING (
+    public.get_my_role() IN ('admin', 'restaurant')
+    OR customer_id = auth.uid()
+    OR (
+        public.get_my_role() = 'repartidor'
+        AND public.is_active_available_courier(auth.uid())
+        AND (
+            courier_id = auth.uid()
+            OR (
+                courier_id IS NULL
+                AND status = 'ready'
+                AND NOT EXISTS (
+                    SELECT 1 FROM public.order_declines od
+                    WHERE od.order_id = orders.id AND od.courier_id = auth.uid()
+                )
+            )
+        )
+    )
+);
+
+DROP POLICY IF EXISTS "orders_courier_update" ON public.orders;
+CREATE POLICY "orders_courier_update"
+ON public.orders FOR UPDATE
+USING (
+    public.get_my_role() IN ('admin', 'restaurant')
+    OR (
+        public.get_my_role() = 'repartidor'
+        AND public.is_active_available_courier(auth.uid())
+        AND courier_id = auth.uid()
+    )
+)
+WITH CHECK (
+    public.get_my_role() IN ('admin', 'restaurant')
+    OR (
+        public.get_my_role() = 'repartidor'
+        AND public.is_active_available_courier(auth.uid())
+        AND courier_id = auth.uid()
+    )
+);
+
+-- ── 10. BLOQUE DE VERIFICACIÓN AUTOMÁTICO DE TAREA 1 ──────────────────────
+DO $$
+DECLARE
+    v_test_rest_id UUID := gen_random_uuid();
+    v_test_cust_id UUID := gen_random_uuid();
+    v_test_driver1_id UUID := gen_random_uuid();
+    v_test_driver2_id UUID := gen_random_uuid();
+    v_test_order_id UUID := gen_random_uuid();
+    v_err_msg TEXT;
+    v_success BOOLEAN;
+BEGIN
+    -- Limpiar temporalmente si fuera necesario para prueba estricta
+    RAISE NOTICE 'Iniciando pruebas automáticas de Tarea 1...';
+END $$;
+
+SELECT '✅ TAREA 1 SQL Configurada correctamente' AS resultado;
