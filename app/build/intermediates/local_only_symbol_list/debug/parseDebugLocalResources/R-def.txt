@@ -3,5 +3,16 @@ local
 array com_google_android_gms_fonts_certs
 array com_google_android_gms_fonts_certs_dev
 array com_google_android_gms_fonts_certs_prod
+color jagoo_bg
+color jagoo_green
+color jagoo_yellow
+color white
+drawable ic_launcher_background
+drawable ic_launcher_foreground
+drawable splash_screen
+mipmap ic_launcher
+mipmap ic_launcher_round
 string app_name
 style Theme.Jagoo
+style Theme.Jagoo.Splash
+xml network_security_config

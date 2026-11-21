@@ -88,10 +88,13 @@ export function KpiCard({ label, value, trend, trendUp, sub }: {
 }
 
 // ── Section header ─────────────────────────────────────────────────────────────
-export function SectionHeader({ title, children }: { title: string; children?: ReactNode }) {
+export function SectionHeader({ title, description, children }: { title: string; description?: string; children?: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-      <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">{title}</h2>
+    <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+      <div>
+        <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">{title}</h2>
+        {description && <p className="text-sm text-[var(--color-ink-muted)] mt-0.5">{description}</p>}
+      </div>
       {children}
     </div>
   )

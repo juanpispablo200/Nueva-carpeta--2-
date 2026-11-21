@@ -4,11 +4,17 @@ import { supabase } from '../../lib/supabase'
 
 interface Setting { key: string; value: string }
 
-const SETTING_META: Record<string, { label: string; description: string; type: 'text' | 'number' | 'toggle' | 'time-range' }> = {
-  platform_name:        { label: 'Nombre de la plataforma', description: 'Aparece en notificaciones y correos.',          type: 'text'       },
-  default_delivery_fee: { label: 'Costo de envío por defecto ($)', description: 'Usado si el restaurante no define uno.', type: 'number'     },
-  global_schedule:      { label: 'Horario global de operación', description: 'Formato HH:MM-HH:MM, ej: 08:00-22:00.',    type: 'text'       },
-  maintenance_mode:     { label: 'Modo mantenimiento', description: 'Muestra aviso de mantenimiento a los clientes.',      type: 'toggle'     },
+const SETTING_META: Record<string, { label: string; description: string; type: 'text' | 'number' | 'toggle' }> = {
+  platform_name:          { label: 'Nombre de la plataforma',       description: 'Aparece en notificaciones y correos.',                   type: 'text'   },
+  default_delivery_fee:   { label: 'Costo de envío por defecto ($)', description: 'Usado si el restaurante no define uno.',                 type: 'number' },
+  driver_fee_per_delivery:{ label: 'Comisión del repartidor ($)',    description: 'Ganancia fija por entrega completada.',                  type: 'number' },
+  global_schedule:        { label: 'Horario global de operación',    description: 'Formato HH:MM-HH:MM, ej: 08:00-22:00.',                 type: 'text'   },
+  maintenance_mode:       { label: 'Modo mantenimiento',             description: 'Muestra aviso de mantenimiento a los clientes.',         type: 'toggle' },
+  bank_name:              { label: 'Banco',                          description: 'Nombre del banco para pagos por transferencia.',         type: 'text'   },
+  bank_account_type:      { label: 'Tipo de cuenta',                 description: 'Ahorros o Corriente.',                                  type: 'text'   },
+  bank_account_number:    { label: 'Número de cuenta',               description: 'Número completo de la cuenta bancaria.',                type: 'text'   },
+  bank_account_holder:    { label: 'Titular de la cuenta',           description: 'Nombre del titular tal como aparece en el banco.',      type: 'text'   },
+  bank_ruc:               { label: 'RUC / Cédula del titular',       description: 'RUC de la empresa o cédula del titular.',               type: 'text'   },
 }
 
 export default function AjustesPage() {

@@ -8,6 +8,7 @@ import com.jagoo.app.data.remote.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,7 +30,9 @@ sealed class AuthState {
 @Serializable
 private data class ProfileRole(
     val role: String = UserRole.CUSTOMER,
-    @SerialName("is_active") val isActive: Boolean = true
+    @SerialName("is_active") val isActive: Boolean = true,
+    @SerialName("full_name") val fullName: String = "",
+    val phone: String = ""
 )
 
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
@@ -154,6 +157,46 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             _email.value    = ""
             _password.value = ""
             _fullName.value = ""
+        }
+    }
+
+    fun resetPassword(emailAddress: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        if (emailAddress.isBlank()) { onError("Ingresa tu email"); return }
+        viewModelScope.launch {
+            try {
+                auth.resetPasswordForEmail(emailAddress.trim())
+                onSuccess()
+            } catch (e: Exception) {
+                onError("No se pudo enviar el correo. Verifica tu email e intenta de nuevo.")
+            }
+        }
+    }
+
+    fun updateProfile(newName: String, newPhone: String, onDone: (Boolean) -> Unit) {
+        if (newName.isBlank()) { onDone(false); return }
+        viewModelScope.launch {
+            try {
+                val userId = auth.currentUserOrNull()?.id ?: return@launch
+                supabase.from("profiles")
+                    .update({
+                        set("full_name", newName.trim())
+                        set("phone",     newPhone.trim())
+                    }) { filter { eq("id", userId) } }
+                _fullName.value = newName.trim()
+                onDone(true)
+            } catch (_: Exception) { onDone(false) }
+        }
+    }
+
+    fun loadProfile(onResult: (name: String, phone: String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val userId = auth.currentUserOrNull()?.id ?: return@launch
+                val row = supabase.from("profiles")
+                    .select { filter { eq("id", userId) } }
+                    .decodeSingle<ProfileRole>()
+                onResult(row.fullName, row.phone)
+            } catch (_: Exception) { onResult("", "") }
         }
     }
 

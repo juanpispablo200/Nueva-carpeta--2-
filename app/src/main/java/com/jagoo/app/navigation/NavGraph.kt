@@ -10,17 +10,24 @@ import androidx.navigation.navArgument
 import com.jagoo.app.ui.screens.AddressesScreen
 import com.jagoo.app.ui.screens.CartScreen
 import com.jagoo.app.ui.screens.CategoryScreen
+import com.jagoo.app.ui.screens.CheckoutScreen
 import com.jagoo.app.ui.screens.HomeScreen
+import com.jagoo.app.ui.screens.KushkiPaymentScreen
 import com.jagoo.app.ui.screens.LoginScreen
 import com.jagoo.app.ui.screens.OrderHistoryScreen
 import com.jagoo.app.ui.screens.OrderTrackingScreen
+import com.jagoo.app.ui.screens.PaymentInstructionsScreen
 import com.jagoo.app.ui.screens.ProfileScreen
+import com.jagoo.app.ui.screens.RatingScreen
 import com.jagoo.app.ui.screens.RegisterScreen
 import com.jagoo.app.ui.screens.RestaurantDetailScreen
 import com.jagoo.app.ui.screens.SearchScreen
 import com.jagoo.app.viewmodel.AuthViewModel
 import com.jagoo.app.viewmodel.CartViewModel
+import com.jagoo.app.viewmodel.KushkiViewModel
 import com.jagoo.app.viewmodel.ProductViewModel
+import com.jagoo.app.viewmodel.RatingViewModel
+import com.jagoo.app.viewmodel.SettingsViewModel
 
 @Composable
 fun NavGraph(
@@ -28,6 +35,9 @@ fun NavGraph(
     authViewModel: AuthViewModel,
     productViewModel: ProductViewModel,
     cartViewModel: CartViewModel,
+    settingsViewModel: SettingsViewModel,
+    kushkiViewModel: KushkiViewModel,
+    ratingViewModel: RatingViewModel,
     startDestination: String,
     modifier: Modifier = Modifier
 ) {
@@ -119,20 +129,114 @@ fun NavGraph(
         composable(Screen.Cart.route) {
             CartScreen(
                 cartViewModel   = cartViewModel,
-                onContinueClick = { navController.navigate(Screen.Orders.route) }
+                onContinueClick = { navController.navigate(Screen.Checkout.route) }
+            )
+        }
+
+        composable(Screen.Checkout.route) {
+            CheckoutScreen(
+                cartViewModel    = cartViewModel,
+                productViewModel = productViewModel,
+                onBackClick      = { navController.popBackStack() },
+                onOrderConfirmed = { orderId, total ->
+                    navController.navigate(Screen.PaymentInstructions.createRoute(orderId, total)) {
+                        popUpTo(Screen.Home.route) { inclusive = false }
+                    }
+                },
+                onPayWithCard = { orderId, total ->
+                    navController.navigate(Screen.KushkiPayment.createRoute(orderId, total)) {
+                        popUpTo(Screen.Home.route) { inclusive = false }
+                    }
+                }
+            )
+        }
+
+        composable(
+            route     = Screen.PaymentInstructions.route,
+            arguments = listOf(
+                navArgument("orderId") { type = NavType.StringType },
+                navArgument("total")   { type = NavType.StringType }
+            )
+        ) { back ->
+            val orderId = back.arguments?.getString("orderId") ?: ""
+            val total   = back.arguments?.getString("total")?.toDoubleOrNull() ?: 0.0
+            PaymentInstructionsScreen(
+                cartViewModel     = cartViewModel,
+                settingsViewModel = settingsViewModel,
+                orderId           = orderId,
+                totalAmount       = total,
+                onPaymentUploaded = {
+                    navController.navigate(Screen.Orders.route) {
+                        popUpTo(Screen.Home.route) { inclusive = false }
+                    }
+                }
+            )
+        }
+
+        composable(
+            route     = Screen.KushkiPayment.route,
+            arguments = listOf(
+                navArgument("orderId") { type = NavType.StringType },
+                navArgument("total")   { type = NavType.StringType }
+            )
+        ) { back ->
+            val orderId = back.arguments?.getString("orderId") ?: ""
+            val total   = back.arguments?.getString("total")?.toDoubleOrNull() ?: 0.0
+            KushkiPaymentScreen(
+                cartViewModel    = cartViewModel,
+                kushkiViewModel  = kushkiViewModel,
+                orderId          = orderId,
+                totalAmount      = total,
+                onPaymentSuccess = {
+                    navController.navigate(Screen.Orders.route) {
+                        popUpTo(Screen.Home.route) { inclusive = false }
+                    }
+                },
+                onBackClick = { navController.popBackStack() }
             )
         }
 
         composable(Screen.Orders.route) {
             OrderTrackingScreen(
                 cartViewModel        = cartViewModel,
-                onExploreRestaurants = { navController.navigate(Screen.Home.route) }
+                onExploreRestaurants = { navController.navigate(Screen.Home.route) },
+                onOrderDelivered     = { orderId, restaurantName, courierName ->
+                    navController.navigate(
+                        Screen.Rating.createRoute(orderId, restaurantName, courierName ?: "")
+                    )
+                }
+            )
+        }
+
+        composable(
+            route     = Screen.Rating.route,
+            arguments = listOf(
+                navArgument("orderId")        { type = NavType.StringType },
+                navArgument("restaurantName") { type = NavType.StringType },
+                navArgument("courierName")    { type = NavType.StringType }
+            )
+        ) { back ->
+            val orderId        = back.arguments?.getString("orderId")        ?: ""
+            val restaurantName = back.arguments?.getString("restaurantName")
+                ?.let { java.net.URLDecoder.decode(it, "UTF-8") } ?: ""
+            val courierName    = back.arguments?.getString("courierName")
+                ?.let { java.net.URLDecoder.decode(it, "UTF-8") }
+                ?.takeIf { it.isNotBlank() }
+
+            ratingViewModel.reset()
+            RatingScreen(
+                ratingViewModel = ratingViewModel,
+                orderId         = orderId,
+                restaurantName  = restaurantName,
+                courierName     = courierName,
+                onDone          = { navController.navigate(Screen.Home.route) { popUpTo(0) } }
             )
         }
 
         composable(Screen.Profile.route) {
             ProfileScreen(
                 productViewModel      = productViewModel,
+                authViewModel         = authViewModel,
                 onNavigateToAddresses = { navController.navigate(Screen.Addresses.route) },
                 onNavigateToHistory   = { navController.navigate(Screen.OrderHistory.route) },
                 onLogout              = {

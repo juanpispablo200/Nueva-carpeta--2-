@@ -17,7 +17,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,6 +52,8 @@ fun HomeScreen(
     val searchQuery by productViewModel.searchQuery.collectAsState()
     val selectedCategory by productViewModel.selectedCategory.collectAsState()
     val addresses by productViewModel.addresses.collectAsState()
+    val loadError by productViewModel.loadError.collectAsState()
+    val isLoading by productViewModel.isLoading.collectAsState()
 
     val primaryAddress = addresses.find { it.isPrimary }?.fullAddress ?: "Av. República del Salvador, Quito"
     val offerRestaurants = restaurants.filter { it.isOffer }
@@ -67,6 +71,47 @@ fun HomeScreen(
             placeholderText = "¿Qué se te antoja hoy?",
             onSearchQueryChange = { productViewModel.updateSearchQuery(it) }
         )
+
+        // Banner de error con retry
+        if (loadError != null) {
+            androidx.compose.foundation.layout.Box(
+                modifier = androidx.compose.ui.Modifier
+                    .fillMaxWidth()
+                    .background(androidx.compose.ui.graphics.Color(0xFFFFF3E0))
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = androidx.compose.ui.Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = loadError ?: "",
+                        fontFamily = PoppinsFontFamily,
+                        fontSize = 12.sp,
+                        color = androidx.compose.ui.graphics.Color(0xFF795548)
+                    )
+                    androidx.compose.material3.TextButton(onClick = {
+                        productViewModel.clearError()
+                        productViewModel.retryLoad()
+                    }) {
+                        Text("Reintentar", color = com.jagoo.app.ui.theme.JagooGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // Indicador de carga inicial
+        if (isLoading && restaurants.isEmpty()) {
+            androidx.compose.foundation.layout.Box(
+                modifier = androidx.compose.ui.Modifier.fillMaxWidth().padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                androidx.compose.material3.CircularProgressIndicator(color = com.jagoo.app.ui.theme.JagooGreen)
+            }
+            return@Column
+        }
 
         Column(
             modifier = Modifier

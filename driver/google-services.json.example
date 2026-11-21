@@ -1,0 +1,22 @@
+{
+  "_INSTRUCCIONES": [
+    "1. Mismo proyecto Firebase que la app cliente",
+    "2. Agrega app Android con package: com.jagoo.driver",
+    "3. Descarga google-services.json y colócalo en driver/google-services.json",
+    "4. Nunca commitees google-services.json (ya está en .gitignore)"
+  ],
+  "project_info": {
+    "project_number": "TU_PROJECT_NUMBER",
+    "project_id":     "jagoo-app",
+    "storage_bucket": "jagoo-app.appspot.com"
+  },
+  "client": [{
+    "client_info": {
+      "mobilesdk_app_id": "1:TU_PROJECT_NUMBER:android:TU_DRIVER_APP_ID",
+      "android_client_info": { "package_name": "com.jagoo.driver" }
+    },
+    "api_key": [{ "current_key": "TU_API_KEY" }],
+    "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+  }],
+  "configuration_version": "1"
+}

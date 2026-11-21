@@ -2,12 +2,15 @@
 sdk.dir=C\:\\Users\\TU_USUARIO\\AppData\\Local\\Android\\Sdk
 
 # ── Supabase ──────────────────────────────────────────────────────────────────
-# URL del proyecto
 supabase.url=https://TUPROYECTO.supabase.co
-
-# Anon key (empieza con eyJ...)
 supabase.anon.key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
-# ── Uso ───────────────────────────────────────────────────────────────────────
-# Copia este archivo como local.properties y rellena los valores.
-# local.properties está en .gitignore — nunca lo commitees.
+# ── Google Maps ───────────────────────────────────────────────────────────────
+# Obtener en: https://console.cloud.google.com → APIs y servicios → Credenciales
+# Habilitar: Maps SDK for Android
+maps.api.key=AIzaSy_TU_CLAVE_AQUI
+
+# ── Cómo usar ─────────────────────────────────────────────────────────────────
+# 1. Copia este archivo como local.properties (misma carpeta)
+# 2. Rellena los valores reales
+# 3. NUNCA commitees local.properties (ya está en .gitignore)

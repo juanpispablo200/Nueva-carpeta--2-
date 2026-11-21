@@ -36,7 +36,6 @@ export default function RequireRole({ allowedRoles, children }: Props) {
 
         // Sin perfil → logout y login con mensaje
         if (error || !profile) {
-          console.warn('RequireRole: sin perfil para', user.id, error?.message)
           await supabase.auth.signOut()
           sessionStorage.setItem('authError', 'Tu cuenta no tiene un perfil válido. Contacta al administrador.')
           setRedirectTo('/login')
@@ -66,8 +65,7 @@ export default function RequireRole({ allowedRoles, children }: Props) {
         setRedirectTo(ROLE_HOME[userRole] ?? '/login')
         setState('redirect')
 
-      } catch (err) {
-        console.error('RequireRole error:', err)
+      } catch {
         setRedirectTo('/login')
         setState('redirect')
       }

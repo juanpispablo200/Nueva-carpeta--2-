@@ -1,0 +1,33 @@
+# ── Android ───────────────────────────────────────────────────────────────────
+*.iml
+.gradle/
+.idea/
+.DS_Store
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+
+# ── Secretos — NUNCA subir al repo ────────────────────────────────────────────
+local.properties
+keystore.properties
+keystore.driver.properties
+*.jks
+*.keystore
+google-services.json
+
+# ── Web ───────────────────────────────────────────────────────────────────────
+web/node_modules/
+web/dist/
+web/.env
+
+# ── Supabase ──────────────────────────────────────────────────────────────────
+supabase/.env
+supabase/functions/**/.env
+
+# ── Sistema ───────────────────────────────────────────────────────────────────
+Thumbs.db
+*.log

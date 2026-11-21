@@ -3,6 +3,7 @@
 -- ============================================================================
 -- Tabla elegida para is_available: PROFILES (profiles.is_available)
 -- Columna elegida para el repartidor en orders: COURIER_ID (orders.courier_id)
+-- Estados válidos: pending, accepted, preparing, ready, picked_up, on_the_way, delivered, cancelled
 -- ============================================================================
 
 -- ── 1. RESPALDO DE ORDERS Y ESTANDARIZACIÓN DE COLUMNA COURIER_ID ───────────
@@ -118,8 +119,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- ── 6. TRIGGER DE VALIDACIÓN DE TRANSICIÓN DE ESTADOS EN ORDERS ───────────
--- Flujo permitido: pending -> accepted/confirmed -> preparing -> ready -> picked_up -> on_the_way -> delivered
--- Cancelled está permitido desde cualquier estado excepto delivered o cancelled
+-- Estados oficiales permitidos: pending, accepted, preparing, ready, picked_up, on_the_way, delivered, cancelled
 CREATE OR REPLACE FUNCTION public.validate_order_status_transition()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -127,7 +127,7 @@ BEGIN
         RETURN NEW;
     END IF;
 
-    -- Cancelled permitido antes de delivered
+    -- Cancelled permitido antes de delivered o cancelled
     IF NEW.status = 'cancelled' THEN
         IF OLD.status IN ('delivered', 'cancelled') THEN
             RAISE EXCEPTION 'No se puede cancelar un pedido entregado o ya cancelado.';
@@ -135,35 +135,30 @@ BEGIN
         RETURN NEW;
     END IF;
 
-    -- Validar transiciones exactas
     CASE OLD.status
         WHEN 'pending' THEN
-            IF NEW.status NOT IN ('accepted', 'confirmed', 'preparing') THEN
-                RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
+            IF NEW.status NOT IN ('accepted') THEN
+                RAISE EXCEPTION 'Transición inválida: % -> %. Flujo permitido: pending -> accepted', OLD.status, NEW.status;
             END IF;
         WHEN 'accepted' THEN
-            IF NEW.status NOT IN ('confirmed', 'preparing') THEN
-                RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
-            END IF;
-        WHEN 'confirmed' THEN
-            IF NEW.status NOT IN ('preparing', 'ready') THEN
-                RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
+            IF NEW.status NOT IN ('preparing') THEN
+                RAISE EXCEPTION 'Transición inválida: % -> %. Flujo permitido: accepted -> preparing', OLD.status, NEW.status;
             END IF;
         WHEN 'preparing' THEN
             IF NEW.status NOT IN ('ready') THEN
-                RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
+                RAISE EXCEPTION 'Transición inválida: % -> %. Flujo permitido: preparing -> ready', OLD.status, NEW.status;
             END IF;
         WHEN 'ready' THEN
-            IF NEW.status NOT IN ('picked_up', 'on_the_way') THEN
-                RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
+            IF NEW.status NOT IN ('picked_up') THEN
+                RAISE EXCEPTION 'Transición inválida: % -> %. Flujo permitido: ready -> picked_up', OLD.status, NEW.status;
             END IF;
         WHEN 'picked_up' THEN
             IF NEW.status NOT IN ('on_the_way') THEN
-                RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
+                RAISE EXCEPTION 'Transición inválida: % -> %. Flujo permitido: picked_up -> on_the_way', OLD.status, NEW.status;
             END IF;
         WHEN 'on_the_way' THEN
             IF NEW.status NOT IN ('delivered') THEN
-                RAISE EXCEPTION 'Transición no permitida: % -> %', OLD.status, NEW.status;
+                RAISE EXCEPTION 'Transición inválida: % -> %. Flujo permitido: on_the_way -> delivered', OLD.status, NEW.status;
             END IF;
         WHEN 'delivered' THEN
             RAISE EXCEPTION 'El pedido ya fue entregado y no puede cambiar de estado.';
@@ -195,19 +190,16 @@ BEGIN
     IF v_role = 'repartidor' THEN
         v_is_accepting := current_setting('app.accepting_order', true);
 
-        -- Si la llamada proviene de accept_order()
         IF v_is_accepting = 'on' THEN
             IF OLD.courier_id IS NOT NULL OR NEW.courier_id != auth.uid() THEN
                 RAISE EXCEPTION 'Un repartidor solo puede asignarse a un pedido libre.';
             END IF;
         ELSE
-            -- Si NO viene de accept_order, el repartidor no puede cambiar courier_id
             IF OLD.courier_id IS DISTINCT FROM NEW.courier_id THEN
                 RAISE EXCEPTION 'Un repartidor no puede cambiar directamente el repartidor asignado.';
             END IF;
         END IF;
 
-        -- Bloquear modificación de cualquier otra columna sensible
         IF OLD.subtotal IS DISTINCT FROM NEW.subtotal OR
            OLD.total IS DISTINCT FROM NEW.total OR
            OLD.customer_id IS DISTINCT FROM NEW.customer_id OR
@@ -260,14 +252,12 @@ BEGIN
         RAISE EXCEPTION 'Debes estar en modo Disponible para aceptar pedidos';
     END IF;
 
-    -- Activar flag de sesión temporal para permitir que el trigger acepte el cambio de courier_id de NULL a auth.uid()
     PERFORM set_config('app.accepting_order', 'on', true);
 
-    -- Actualización atómica en orders
+    -- Actualización atómica (sin tocar created_at)
     UPDATE public.orders
     SET courier_id = v_user_id,
-        status = 'picked_up',
-        created_at = NOW()
+        status = 'picked_up'
     WHERE id = p_order_id
       AND courier_id IS NULL
       AND status = 'ready';
@@ -278,7 +268,6 @@ BEGIN
         RAISE EXCEPTION 'Pedido ya tomado por otro repartidor';
     END IF;
 
-    -- Registrar en audit_log
     INSERT INTO public.audit_log (order_id, actor_id, action, details)
     VALUES (
         p_order_id,

@@ -1,14 +1,44 @@
 import { NavLink } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { NAV } from '../../lib/nav'
+import { supabase } from '../../lib/supabase'
 import type { UserRole } from '../../lib/supabase'
 
 interface Props {
   role: UserRole
-  onNavigate?: () => void  // para cerrar el sidebar en mobile tras click
+  onNavigate?: () => void
 }
 
 export default function Sidebar({ role, onNavigate }: Props) {
   const items = NAV[role] || []
+
+  // Badge de pagos pendientes — solo admin, actualizado en tiempo real
+  const [pendingPayments, setPendingPayments] = useState(0)
+
+  useEffect(() => {
+    if (role !== 'admin') return
+
+    const fetchCount = () => {
+      supabase
+        .from('payment_proofs')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .then(({ count }) => setPendingPayments(count ?? 0))
+    }
+
+    fetchCount()
+
+    const channel = supabase
+      .channel('payment_proofs_badge')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'payment_proofs' },
+        fetchCount
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [role])
 
   return (
     <aside className="w-[var(--sidebar-w)] h-full bg-[var(--color-surface)] border-r border-[var(--color-border)] flex flex-col">
@@ -36,7 +66,14 @@ export default function Sidebar({ role, onNavigate }: Props) {
             `}
           >
             <Icon size={18} />
-            <span className="text-sm">{label}</span>
+            <span className="text-sm flex-1">{label}</span>
+
+            {/* Badge de pagos pendientes */}
+            {key === 'pagos' && pendingPayments > 0 && (
+              <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
+                {pendingPayments > 99 ? '99+' : pendingPayments}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>

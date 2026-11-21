@@ -63,7 +63,6 @@ fun CartScreen(
     onContinueClick: () -> Unit
 ) {
     val cartItems by cartViewModel.cartItems.collectAsState()
-    val couponApplied by cartViewModel.couponApplied.collectAsState()
     val cartConflict by cartViewModel.cartConflict.collectAsState()
 
     val restaurantName = cartViewModel.currentRestaurantName ?: "Restaurante"
@@ -152,54 +151,34 @@ fun CartScreen(
 
                     Spacer(modifier = Modifier.height(JagooSpacing.md))
 
+                    // Nota: los cupones se aplican en el checkout
                     Card(
                         shape = CouponShape,
-                        colors = CardDefaults.cardColors(containerColor = JagooCardWhite),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        colors = CardDefaults.cardColors(containerColor = JagooYellow.copy(alpha = 0.2f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(54.dp)
+                            .height(50.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(horizontal = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = if (couponApplied) Icons.Default.CheckCircle else Icons.Default.LocalOffer,
-                                    contentDescription = "Cupón",
-                                    tint = if (couponApplied) JagooGreen else Color.Gray,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(JagooSpacing.sm))
-                                Text(
-                                    text = if (couponApplied) "Cupón aplicado (-$2,00)" else "Cupón de descuento",
-                                    fontFamily = PoppinsFontFamily,
-                                    fontSize = 13.sp,
-                                    color = if (couponApplied) JagooGreen else Color.Gray,
-                                    fontWeight = if (couponApplied) FontWeight.Bold else FontWeight.Normal
-                                )
-                            }
-
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .clip(PillShape)
-                                    .background(if (couponApplied) JagooGreen else JagooYellow)
-                                    .clickable { cartViewModel.applyCoupon() }
-                                    .padding(horizontal = JagooSpacing.md, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    text = if (couponApplied) "Aplicado" else "Aplicar",
-                                    fontFamily = PoppinsFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    color = if (couponApplied) Color.White else JagooTextPrimary
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.LocalOffer,
+                                contentDescription = "Cupón",
+                                tint = JagooGreen,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Aplicarás tu cupón en el siguiente paso",
+                                fontFamily = PoppinsFontFamily,
+                                fontSize = 12.sp,
+                                color = JagooGreen
+                            )
                         }
                     }
 
@@ -283,10 +262,7 @@ fun CartScreen(
             Spacer(modifier = Modifier.height(JagooSpacing.md))
 
             Button(
-                onClick = {
-                    cartViewModel.confirmOrder()
-                    onContinueClick()
-                },
+                onClick = onContinueClick,
                 enabled = cartItems.isNotEmpty(),
                 shape = PillShape,
                 colors = ButtonDefaults.buttonColors(
@@ -298,7 +274,7 @@ fun CartScreen(
                     .height(52.dp)
             ) {
                 Text(
-                    text = if (cartItems.isEmpty()) "Carrito vacío" else "Confirmar Pedido",
+                    text = if (cartItems.isEmpty()) "Carrito vacío" else "Continuar al Pago",
                     fontFamily = PoppinsFontFamily,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,

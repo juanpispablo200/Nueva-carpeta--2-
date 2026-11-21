@@ -53,7 +53,9 @@ import com.jagoo.app.data.remote.SupabaseClient
 import com.jagoo.app.data.remote.buildTimeline
 import com.jagoo.app.ui.components.CourierCard
 import com.jagoo.app.ui.components.JagooHeader
+import com.jagoo.app.ui.components.OrderStatusBanner
 import com.jagoo.app.ui.components.OrderTimeline
+import com.jagoo.app.ui.screens.MapaTrackingScreen
 import com.jagoo.app.ui.theme.JagooBackground
 import com.jagoo.app.ui.theme.JagooCardWhite
 import com.jagoo.app.ui.theme.JagooGreen
@@ -79,7 +81,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun OrderTrackingScreen(
     cartViewModel: CartViewModel,
-    onExploreRestaurants: () -> Unit = {}
+    onExploreRestaurants: () -> Unit = {},
+    onOrderDelivered: (orderId: String, restaurantName: String, courierName: String?) -> Unit = { _, _, _ -> }
 ) {
     val activeOrder by cartViewModel.activeOrder.collectAsState()
 
@@ -135,6 +138,15 @@ fun OrderTrackingScreen(
                     timelineItems = buildTimeline(newStatus),
                     courier       = courierInfo
                 )
+
+                // Disparar calificación cuando se entrega el pedido
+                if (newStep == OrderStatusStep.DELIVERED) {
+                    onOrderDelivered(
+                        orderId,
+                        current.restaurantName,
+                        courierInfo?.name
+                    )
+                }
             } catch (_: Exception) {}
         }.launchIn(this)
 
@@ -150,6 +162,9 @@ fun OrderTrackingScreen(
             .background(JagooBackground)
     ) {
         JagooHeader()
+
+        // Banner animado de cambio de estado
+        OrderStatusBanner(statusStep = displayOrder?.statusStep)
 
         if (displayOrder == null) {
             // ── Estado vacío: sin pedido activo ──────────────────────────────
@@ -386,6 +401,21 @@ fun OrderTrackingScreen(
                 ) {
                     Box(modifier = Modifier.padding(12.dp)) {
                         OrderTimeline(items = order.timelineItems)
+                    }
+                }
+
+                // ── Mapa en tiempo real (solo cuando está en camino) ──────────
+                if (order.statusStep == OrderStatusStep.IN_TRANSIT) {
+                    Card(
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = JagooCardWhite),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        MapaTrackingScreen(
+                            cartViewModel = cartViewModel,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
 

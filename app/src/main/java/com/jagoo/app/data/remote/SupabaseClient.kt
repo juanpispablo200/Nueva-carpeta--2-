@@ -3,12 +3,13 @@ package com.jagoo.app.data.remote
 import com.jagoo.app.BuildConfig
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.functions.Functions
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.realtime.Realtime
+import io.github.jan.supabase.storage.Storage
 
 object SupabaseClient {
 
-    // Detectar si las claves están configuradas en local.properties
     val isConfigured: Boolean
         get() = BuildConfig.SUPABASE_URL.isNotBlank() &&
                 BuildConfig.SUPABASE_URL != "PEGA_TU_URL_AQUI" &&
@@ -24,5 +25,7 @@ object SupabaseClient {
         install(Auth)
         install(Postgrest)
         install(Realtime)
+        install(Storage)
+        install(Functions)
     }
 }

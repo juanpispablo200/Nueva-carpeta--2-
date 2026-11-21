@@ -1,0 +1,26 @@
+{
+  "_INSTRUCCIONES": [
+    "1. Ve a https://console.firebase.google.com",
+    "2. Crea proyecto 'Jagoo' (o selecciona uno existente)",
+    "3. Agrega app Android con package: com.jagoo.app",
+    "4. Descarga google-services.json y colócalo en app/google-services.json",
+    "5. Para el Driver, haz lo mismo con package com.jagoo.driver",
+    "6. Nunca commitees google-services.json (ya está en .gitignore)",
+    "7. En Firebase Console → Cloud Messaging → copia la Server Key",
+    "8. En Supabase Dashboard → Edge Functions → Secrets → agrega FCM_SERVER_KEY"
+  ],
+  "project_info": {
+    "project_number": "TU_PROJECT_NUMBER",
+    "project_id":     "jagoo-app",
+    "storage_bucket": "jagoo-app.appspot.com"
+  },
+  "client": [{
+    "client_info": {
+      "mobilesdk_app_id": "1:TU_PROJECT_NUMBER:android:TU_APP_ID",
+      "android_client_info": { "package_name": "com.jagoo.app" }
+    },
+    "api_key": [{ "current_key": "TU_API_KEY" }],
+    "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+  }],
+  "configuration_version": "1"
+}

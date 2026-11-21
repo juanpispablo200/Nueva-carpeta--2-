@@ -16,6 +16,9 @@ import UsuariosAdminPage from './pages/admin/UsuariosAdminPage'
 import ReportesAdminPage from './pages/admin/ReportesAdminPage'
 import AjustesPage from './pages/admin/AjustesPage'
 import AuditLogPage from './pages/admin/AuditLogPage'
+import CalificacionesPage from './pages/admin/CalificacionesPage'
+import PagosAdminPage from './pages/admin/PagosAdminPage'
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 
 // Restaurant
 import RestaurantHomePage from './pages/restaurant/RestaurantHomePage'
@@ -87,8 +90,10 @@ export default function App() {
         >
           <Route index element={<ResumenPage />} />
           <Route path="pedidos" element={<PedidosAdminPage />} />
-          <Route path="repartidores" element={<RepartidoresPage />} />
-          <Route path="restaurantes" element={<RestaurantesAdminPage />} />
+          <Route path="pagos"            element={<PagosAdminPage />} />
+          <Route path="repartidores"    element={<RepartidoresPage />} />
+          <Route path="restaurantes"    element={<RestaurantesAdminPage />} />
+          <Route path="calificaciones"  element={<CalificacionesPage />} />
           <Route path="usuarios" element={<UsuariosAdminPage />} />
           <Route path="reportes" element={<ReportesAdminPage />} />
           <Route path="ajustes" element={<AjustesPage />} />
@@ -105,6 +110,7 @@ export default function App() {
         />
 
         <Route path="/acceso-denegado" element={<AccessDeniedPage />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </ToastProvider>

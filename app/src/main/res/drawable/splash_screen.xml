@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fondo del splash: verde Jagoo con logo centrado -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Fondo verde -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#1A6B3C"/>
+        </shape>
+    </item>
+
+    <!-- Círculo amarillo con icono -->
+    <item
+        android:gravity="center"
+        android:width="120dp"
+        android:height="120dp">
+        <shape android:shape="oval">
+            <solid android:color="#F5C842"/>
+        </shape>
+    </item>
+
+    <!-- Ícono de la moto encima del círculo -->
+    <item
+        android:gravity="center"
+        android:width="72dp"
+        android:height="72dp"
+        android:drawable="@drawable/ic_launcher_foreground"/>
+
+</layer-list>

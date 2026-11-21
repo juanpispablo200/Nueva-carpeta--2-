@@ -399,7 +399,7 @@ private fun DriverDetalleScreen(
 
             item {
                 Spacer(Modifier.height(8.dp))
-                if (!isMyOrder && (pedido.status == "ready" || pedido.status == "picked_up")) {
+                if (!isMyOrder && (pedido.status == "ready")) {
                     Button(
                         onClick = onAceptar,
                         shape = CircleShape,
@@ -441,16 +441,20 @@ private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label
 }
 
 private fun statusLabel(status: String) = when (status) {
+    "pending"    -> "Pendiente"
+    "accepted"   -> "Aceptado"
+    "preparing"  -> "En preparación"
     "ready"      -> "Listo para recoger"
     "picked_up"  -> "Recogido"
     "on_the_way" -> "En camino"
     "delivered"  -> "Entregado"
+    "cancelled"  -> "Cancelado"
     else         -> status
 }
 
 private fun nextAction(status: String): Pair<String?, String> = when (status) {
-    "ready"      -> "on_the_way" to "Marcar en camino 🚴"
+    "ready"      -> "picked_up"  to "Marcar como recogido 📦"
     "picked_up"  -> "on_the_way" to "Marcar en camino 🚴"
-    "on_the_way" -> "delivered"  to "Marcar como entregado 📦"
+    "on_the_way" -> "delivered"  to "Marcar como entregado ✅"
     else         -> null to ""
 }

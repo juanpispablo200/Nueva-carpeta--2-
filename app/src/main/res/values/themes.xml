@@ -1,4 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Jagoo" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- Tema principal — sin ActionBar, fondo blanco -->
+    <style name="Theme.Jagoo" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/white</item>
+        <item name="android:statusBarColor">@color/jagoo_yellow</item>
+        <item name="android:navigationBarColor">@color/white</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <!-- Splash: fondo verde con ícono centrado, dura hasta que carga Compose -->
+    <style name="Theme.Jagoo.Splash" parent="Theme.Jagoo">
+        <item name="android:windowBackground">@drawable/splash_screen</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+
 </resources>

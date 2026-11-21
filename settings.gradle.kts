@@ -17,6 +17,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Kushki Android SDK
+        maven { url = uri("https://jitpack.io") }
     }
 }
 

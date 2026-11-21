@@ -7,14 +7,23 @@ import com.jagoo.app.data.Category
 import com.jagoo.app.data.Dish
 import com.jagoo.app.data.Restaurant
 import com.jagoo.app.data.RestaurantData
+import com.jagoo.app.data.remote.SupabaseClient
 import com.jagoo.app.data.repository.AddressItem
 import com.jagoo.app.data.repository.LocalJagooRepository
 import com.jagoo.app.data.repository.SupabaseJagooRepository
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 class ProductViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -42,6 +51,16 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
     private val _favoriteRestaurantIds = MutableStateFlow<Set<String>>(setOf("r1", "r3"))
     val favoriteRestaurantIds: StateFlow<Set<String>> = _favoriteRestaurantIds.asStateFlow()
 
+    private val _favoritesLoading = MutableStateFlow(false)
+    val favoritesLoading: StateFlow<Boolean> = _favoritesLoading.asStateFlow()
+
+    // Estado de carga global — para mostrar errores con retry
+    private val _loadError = MutableStateFlow<String?>(null)
+    val loadError: StateFlow<String?> = _loadError.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
     private val _addresses = MutableStateFlow<List<AddressItem>>(localRepo.getAddresses())
     val addresses: StateFlow<List<AddressItem>> = _addresses.asStateFlow()
 
@@ -49,14 +68,42 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
     init {
         loadRestaurantsFromSupabase()
         loadAddressesFromSupabase()
+        loadFavoritesFromSupabase()
+        setupSearchDebounce()
+    }
+
+    @OptIn(FlowPreview::class)
+    private fun setupSearchDebounce() {
+        viewModelScope.launch {
+            _searchQuery
+                .debounce(300)
+                .distinctUntilChanged()
+                .collect { /* El filtrado es reactivo vía getFilteredRestaurants() */ }
+        }
     }
 
     private fun loadRestaurantsFromSupabase() {
         viewModelScope.launch {
-            val result = supabaseRepo.getRestaurantsSuspend()
-            if (result.isNotEmpty()) _restaurants.value = result
+            _isLoading.value = true
+            _loadError.value = null
+            try {
+                val result = supabaseRepo.getRestaurantsSuspend()
+                if (result.isNotEmpty()) _restaurants.value = result
+            } catch (e: Exception) {
+                _loadError.value = "Sin conexión. Usando datos locales."
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
+
+    fun retryLoad() {
+        loadRestaurantsFromSupabase()
+        loadAddressesFromSupabase()
+        loadFavoritesFromSupabase()
+    }
+
+    fun clearError() { _loadError.value = null }
 
     private fun loadAddressesFromSupabase() {
         viewModelScope.launch {
@@ -75,13 +122,42 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
     fun selectCategory(name: String?)       { _selectedCategory.value = name }
     fun updateSearchQuery(query: String)    { _searchQuery.value = query }
 
-    // ── Favoritos ─────────────────────────────────────────────────────────────
-    fun toggleFavorite(restaurantId: String) {
-        _favoriteRestaurantIds.update { current ->
-            if (current.contains(restaurantId)) current - restaurantId
-            else current + restaurantId
+    // ── Favoritos persistentes en Supabase ───────────────────────────────────
+    private fun loadFavoritesFromSupabase() {
+        viewModelScope.launch {
+            try {
+                val userId = SupabaseClient.client.auth.currentUserOrNull()?.id ?: return@launch
+                val rows = SupabaseClient.client
+                    .from("favorites")
+                    .select { filter { eq("user_id", userId) } }
+                    .decodeList<FavoriteRow>()
+                _favoriteRestaurantIds.value = rows.map { it.restaurantId }.toSet()
+            } catch (_: Exception) { /* Mantiene favoritos en memoria si falla */ }
         }
     }
+
+    fun toggleFavorite(restaurantId: String) {
+        viewModelScope.launch {
+            _favoritesLoading.value = true
+            try {
+                val isFav = SupabaseClient.client.postgrest
+                    .rpc("toggle_favorite", buildJsonObject { put("p_restaurant_id", restaurantId) })
+                    .decodeAs<Boolean>()
+                _favoriteRestaurantIds.update { current ->
+                    if (isFav) current + restaurantId else current - restaurantId
+                }
+            } catch (_: Exception) {
+                // Fallback optimista si Supabase falla
+                _favoriteRestaurantIds.update { current ->
+                    if (current.contains(restaurantId)) current - restaurantId
+                    else current + restaurantId
+                }
+            } finally {
+                _favoritesLoading.value = false
+            }
+        }
+    }
+
     fun isFavorite(restaurantId: String) = _favoriteRestaurantIds.value.contains(restaurantId)
 
     // ── Restaurantes ──────────────────────────────────────────────────────────
@@ -192,3 +268,8 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 }
+
+@kotlinx.serialization.Serializable
+private data class FavoriteRow(
+    @kotlinx.serialization.SerialName("restaurant_id") val restaurantId: String
+)

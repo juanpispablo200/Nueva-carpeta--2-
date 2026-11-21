@@ -1,10 +1,12 @@
 package com.jagoo.driver.viewmodel
 
 import android.app.Application
+import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.jagoo.driver.data.remote.DriverOrderDto
 import com.jagoo.driver.data.remote.SupabaseClient
+import com.jagoo.driver.location.DriverLocationService
 import com.jagoo.driver.notifications.DriverNotificationManager
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
@@ -19,8 +21,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+
+@Serializable
+data class DriverEarningsDto(
+    @SerialName("total_deliveries") val totalDeliveries: Long   = 0,
+    @SerialName("fee_per_delivery") val feePerDelivery: Double  = 1.50,
+    @SerialName("total_earnings")   val totalEarnings: Double   = 0.0,
+    val period: String                                           = "all"
+)
 
 class DriverRepartidorViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -45,6 +57,9 @@ class DriverRepartidorViewModel(application: Application) : AndroidViewModel(app
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
+
+    private val _earnings = MutableStateFlow<DriverEarningsDto?>(null)
+    val earnings: StateFlow<DriverEarningsDto?> = _earnings.asStateFlow()
 
     init {
         cargarEstadoInicial()
@@ -150,6 +165,8 @@ class DriverRepartidorViewModel(application: Application) : AndroidViewModel(app
             try {
                 val params = buildJsonObject { put("p_order_id", orderId) }
                 supabase.postgrest.rpc("accept_order", params)
+                // Arrancar GPS tracking cuando acepta un pedido
+                startLocationTracking()
                 cargarPedidos()
                 onSuccess()
             } catch (e: Exception) {
@@ -169,6 +186,8 @@ class DriverRepartidorViewModel(application: Application) : AndroidViewModel(app
                             eq("courier_id", auth.currentUserOrNull()?.id ?: "")
                         }
                     }
+                // Si entregado, detener GPS
+                if (nuevoStatus == "delivered") stopLocationTracking()
                 cargarPedidos()
             } catch (e: Exception) {
                 _error.value = "Transición de estado no permitida"
@@ -177,4 +196,38 @@ class DriverRepartidorViewModel(application: Application) : AndroidViewModel(app
     }
 
     fun clearError() { _error.value = null }
+
+    fun startLocationTracking() {
+        val ctx = getApplication<Application>().applicationContext
+        val intent = Intent(ctx, DriverLocationService::class.java)
+        ctx.startForegroundService(intent)
+    }
+
+    fun stopLocationTracking() {
+        val ctx = getApplication<Application>().applicationContext
+        ctx.stopService(Intent(ctx, DriverLocationService::class.java))
+    }
+
+    fun cargarGanancias(period: String = "all") {
+        viewModelScope.launch {
+            val userId = auth.currentUserOrNull()?.id ?: return@launch
+            try {
+                val result = supabase.postgrest
+                    .rpc("get_driver_earnings", buildJsonObject {
+                        put("p_driver_id", userId)
+                        put("p_period", period)
+                    })
+                    .decodeList<DriverEarningsDto>()
+                _earnings.value = result.firstOrNull()
+            } catch (e: Exception) {
+                // Fallback: calcular local con tarifa 1.50
+                _earnings.value = DriverEarningsDto(
+                    totalDeliveries = _historialEntregas.value.size.toLong(),
+                    feePerDelivery  = 1.50,
+                    totalEarnings   = _historialEntregas.value.size * 1.50,
+                    period          = period
+                )
+            }
+        }
+    }
 }

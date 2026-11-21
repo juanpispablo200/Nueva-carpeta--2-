@@ -7,10 +7,20 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 val localProps = Properties()
 val localPropsFile = rootProject.file("local.properties")
 if (localPropsFile.exists()) {
     localPropsFile.inputStream().use { localProps.load(it) }
+}
+
+val keystoreProps = Properties()
+val keystoreDriverFile = rootProject.file("keystore.driver.properties")
+if (keystoreDriverFile.exists()) {
+    keystoreDriverFile.inputStream().use { keystoreProps.load(it) }
 }
 
 android {
@@ -21,8 +31,8 @@ android {
         applicationId = "com.jagoo.driver"
         minSdk        = 26
         targetSdk     = 35
-        versionCode   = 1
-        versionName   = "1.0"
+        versionCode   = 2
+        versionName   = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -33,13 +43,28 @@ android {
             "\"${localProps.getProperty("supabase.anon.key", "")}\"")
     }
 
+    signingConfigs {
+        if (keystoreDriverFile.exists()) {
+            create("release") {
+                storeFile     = file(keystoreProps.getProperty("storeFile", ""))
+                storePassword = keystoreProps.getProperty("storePassword", "")
+                keyAlias      = keystoreProps.getProperty("keyAlias", "")
+                keyPassword   = keystoreProps.getProperty("keyPassword", "")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled   = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (keystoreDriverFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
@@ -80,8 +105,17 @@ dependencies {
     implementation(libs.supabase.postgrest)
     implementation(libs.supabase.realtime)
 
+    // Firebase — notificaciones push FCM
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
+
+    // Google Maps — para ver posición del repartidor
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps)
+    implementation(libs.play.services.location)
+
     // Ktor
-    implementation(libs.ktor.android)
+    implementation(libs.ktor.okhttp)
 
     // Serialization
     implementation(libs.kotlin.serialization.json)

@@ -91,7 +91,7 @@ fun DriverLoginScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Text(
-                text = "Iniciar sesión",
+                text = "Iniciar sesión / Registro",
                 fontFamily = PoppinsFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 22.sp,
@@ -152,6 +152,7 @@ fun DriverLoginScreen(
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
+            // Botón Ingresar
             Button(
                 onClick = {
                     if (state is DriverAuthState.Error) authViewModel.clearError()
@@ -175,6 +176,25 @@ fun DriverLoginScreen(
                         color = JagooGreen
                     )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Botón Registrar (en caso de que el usuario aún no exista en Supabase Auth)
+            TextButton(
+                onClick = {
+                    if (state is DriverAuthState.Error) authViewModel.clearError()
+                    authViewModel.registerDriver()
+                },
+                enabled = state !is DriverAuthState.Loading
+            ) {
+                Text(
+                    text = "¿No existe tu cuenta? Registrar como Repartidor",
+                    fontFamily = PoppinsFontFamily,
+                    fontSize = 13.sp,
+                    color = JagooGreen,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }

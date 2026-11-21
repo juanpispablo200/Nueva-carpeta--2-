@@ -14,6 +14,19 @@
             MIIEQzCCAyugAwIBAgIJAAB2yACn1Q9yMA0GCSqGSIb3DQEBCwUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEVMBMGA1UEChMMR29vZ2xlIEluYy4xEDAOBgNVBAsTB0FuZHJvaWQxEDAOBgNVBAMTB0FuZHJvaWQxITAfBgkqhkiG9w0BCQEWEmFuZHJvaWRAYW5kcm9pZC5jb20=
         </item>
     </string-array>
+    <color name="jagoo_bg">#F7F7F7</color>
+    <color name="jagoo_green">#1A6B3C</color>
+    <color name="jagoo_yellow">#F5C842</color>
+    <color name="white">#FFFFFF</color>
     <string name="app_name">Jagoo</string>
-    <style name="Theme.Jagoo" parent="android:Theme.Material.Light.NoActionBar"/>
+    <style name="Theme.Jagoo" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/white</item>
+        <item name="android:statusBarColor">@color/jagoo_yellow</item>
+        <item name="android:navigationBarColor">@color/white</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+    <style name="Theme.Jagoo.Splash" parent="Theme.Jagoo">
+        <item name="android:windowBackground">@drawable/splash_screen</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
 </resources>

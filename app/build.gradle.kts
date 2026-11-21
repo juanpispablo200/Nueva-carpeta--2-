@@ -7,11 +7,23 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+// Aplicar google-services solo si google-services.json está presente
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 // Leer claves desde local.properties — nunca hardcodear secretos
 val localProps = Properties()
 val localPropsFile = rootProject.file("local.properties")
 if (localPropsFile.exists()) {
     localPropsFile.inputStream().use { localProps.load(it) }
+}
+
+// Leer keystore.properties si existe (CI/CD y builds de release)
+val keystoreProps = Properties()
+val keystoreFile = rootProject.file("keystore.properties")
+if (keystoreFile.exists()) {
+    keystoreFile.inputStream().use { keystoreProps.load(it) }
 }
 
 android {
@@ -22,8 +34,8 @@ android {
         applicationId = "com.jagoo.app"
         minSdk        = 26
         targetSdk     = 35
-        versionCode   = 1
-        versionName   = "1.0"
+        versionCode   = 2
+        versionName   = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -33,15 +45,34 @@ android {
             "\"${localProps.getProperty("supabase.url", "")}\"")
         buildConfigField("String", "SUPABASE_ANON_KEY",
             "\"${localProps.getProperty("supabase.anon.key", "")}\"")
+        manifestPlaceholders["MAPS_API_KEY"] =
+            localProps.getProperty("maps.api.key", "")    }
+
+    signingConfigs {
+        if (keystoreFile.exists()) {
+            create("release") {
+                storeFile     = file(keystoreProps.getProperty("storeFile", ""))
+                storePassword = keystoreProps.getProperty("storePassword", "")
+                keyAlias      = keystoreProps.getProperty("keyAlias", "")
+                keyPassword   = keystoreProps.getProperty("keyPassword", "")
+            }
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled   = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (keystoreFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
+        debug {
+            isMinifyEnabled = false
         }
     }
 
@@ -55,8 +86,6 @@ android {
         compose     = true
         buildConfig = true
     }
-    // Con Kotlin 2.x el compiler extension version lo gestiona el plugin kotlin.compose
-    // No se necesita kotlinCompilerExtensionVersion manual
 
     packaging {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
@@ -80,13 +109,27 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.ui.text.google.fonts)
 
-    // Supabase — auth, base de datos, tiempo real
+    // Supabase — auth, base de datos, tiempo real, storage, functions
     implementation(libs.supabase.auth)
     implementation(libs.supabase.postgrest)
     implementation(libs.supabase.realtime)
+    implementation(libs.supabase.storage)
+    implementation(libs.supabase.functions)
 
-    // Ktor — motor HTTP que usa Supabase internamente
-    implementation(libs.ktor.android)
+    // AppCompat — necesario para SplashActivity
+    implementation("androidx.appcompat:appcompat:1.7.0")
+
+    // Firebase — notificaciones push FCM
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
+
+    // Google Maps — tracking en tiempo real
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps)
+    implementation(libs.play.services.location)
+
+    // Ktor — motor HTTP que usa Supabase internamente (OkHttp soporta WebSockets)
+    implementation(libs.ktor.okhttp)
 
     // Serialización JSON — necesaria para los modelos de Supabase
     implementation(libs.kotlin.serialization.json)
