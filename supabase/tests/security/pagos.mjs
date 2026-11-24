@@ -11,7 +11,7 @@ const db = new PGlite()
 await db.exec(read(here + path.sep + 'mock.sql'))
 const files = fs.readdirSync(sup + 'migrations').filter(f => f.endsWith('.sql')).sort()
 for (const f of files.slice(0, files.indexOf('20240301000001_mejoras_web.sql'))) await db.exec(read(sup + 'migrations/' + f))
-for (const p of ['01_parte_A.sql', '02_parte_B.sql', '03_parte_C.sql', '04_hardening.sql']) {
+for (const p of ['01_parte_A.sql', '02_parte_B.sql', '03_parte_C.sql', '04_hardening.sql', '05_promociones.sql']) {
   await db.exec(read(sup + 'deploy/' + p))
   console.log('OK  ', p)
 }

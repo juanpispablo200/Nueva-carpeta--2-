@@ -1,4 +1,4 @@
-﻿# Despliegue de la Fase 1 en tu Supabase real
+# Despliegue de la Fase 1 en tu Supabase real
 
 Proyecto: `tjgavwygdotetoatitju`. Hoy tu base solo tiene las 7 primeras migraciones, por eso la app muestra
 "El servidor de Jagoo aún no está actualizado… falta la función create_order". Esta guía lo arregla y aplica el endurecimiento.
@@ -22,10 +22,11 @@ Pega y ejecuta cada archivo completo. Cada uno termina con una fila `PASO N OK`.
 | 3 | `supabase/deploy/02_parte_B.sql` | `PASO 2 OK` |
 | 4 | `supabase/deploy/03_parte_C.sql` | `PASO 3 OK` |
 | 5 | `supabase/deploy/04_hardening.sql` | `PASO 4 OK` y `estado_notificaciones` con `false` (aún no configuras el secreto) |
+| 6 | `supabase/deploy/05_promociones.sql` | `PASO 5 OK` (promociones por negocio y pedido por WhatsApp, Fase 4) |
 
 Si `00_extensiones` falla por permisos, activa `pg_net` y `pg_cron` en **Database → Extensions** y repite.
 
-Verificación (debe dar `tablas_nuevas = 3` y `create_order = 1`):
+Verificación (debe dar `tablas_nuevas = 3`, `create_order = 1` y `funciones_fase1 = 4`; `promotions` aparece al aplicar el paso 6):
 
 ```sql
 select

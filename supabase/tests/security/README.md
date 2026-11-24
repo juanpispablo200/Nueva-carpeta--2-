@@ -4,7 +4,7 @@ Postgres real en memoria con un mock mínimo de Supabase (`mock.sql`). No toca t
 
 ```
 npm install
-npm test                 # base real simulada + 04_hardening: debe dar 116/116
+npm test                 # base real simulada + 04_hardening: debe dar 144/144
 npm run test:antes       # solo hasta 03 (estado actual de tu base): muestra lo que corrige la 24
 node pagos.mjs           # corre supabase/tests/01_pagos_y_pedidos.sql (T1..T11)
 ```

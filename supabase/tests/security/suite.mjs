@@ -19,7 +19,7 @@ await db.exec(read(here + path.sep + 'mock.sql'))
 const files = fs.readdirSync(sup + 'migrations').filter(f => f.endsWith('.sql')).sort()
 for (const f of files.slice(0, files.indexOf('20240301000001_mejoras_web.sql'))) await db.exec(read(sup + 'migrations/' + f))
 const parts = ['01_parte_A.sql', '02_parte_B.sql', '03_parte_C.sql']
-if (!SIN) parts.push('04_hardening.sql')
+if (!SIN) parts.push('04_hardening.sql', '05_promociones.sql')
 for (const p of parts) await db.exec(read(sup + 'deploy/' + p))
 
 const q = async sql => (await db.query(sql)).rows
@@ -337,7 +337,7 @@ await C('ALTO', 'M7 anonimo solo ejecuta get_my_role, is_admin y get_my_restaura
   return [x.length === 0, x.join(',')]
 })
 await C('ALTO', 'M7 authenticated solo ejecuta la lista blanca', async () => {
-  const ok = new Set(['accept_order', 'admin_report_by_type', 'change_order_status', 'check_coupon', 'confirm_age_verification', 'create_order', 'get_driver_earnings', 'get_driver_location', 'get_effective_min_order', 'get_my_restaurant_id', 'get_my_role', 'get_order_contact', 'get_order_rating', 'get_split_pcts', 'is_admin', 'is_adult', 'list_available_orders', 'review_prescription', 'set_birth_date', 'settle_cash_collections', 'submit_rating', 'toggle_favorite', 'update_driver_location', 'upload_payment_proof', 'verify_payment_proof'])
+  const ok = new Set(['accept_order', 'admin_report_by_type', 'change_order_status', 'check_coupon', 'confirm_age_verification', 'create_order', 'get_driver_earnings', 'get_driver_location', 'get_effective_min_order', 'get_my_restaurant_id', 'get_my_role', 'get_order_contact', 'get_order_rating', 'get_restaurant_promo', 'get_restaurant_whatsapp', 'get_split_pcts', 'is_admin', 'is_adult', 'list_active_promotions', 'list_available_orders', 'review_prescription', 'set_birth_date', 'settle_cash_collections', 'submit_rating', 'toggle_favorite', 'update_driver_location', 'upload_payment_proof', 'verify_payment_proof'])
   const x = (await q(`select n from (${fnq}) f where has_function_privilege('authenticated', oid, 'EXECUTE')`)).map(r => r.n).filter(n => !ok.has(n))
   return [x.length === 0, [...new Set(x)].join(',')]
 })
@@ -349,6 +349,82 @@ await C('MEDIO', 'M7 service_role conserva EXECUTE (Edge Functions y cron)', asy
   const x = (await q(`select n from (${fnq}) f where not has_function_privilege('service_role', oid, 'EXECUTE')`)).map(r => r.n)
   return [x.length === 0, x.join(',')]
 })
+
+// ══ 13. Promociones y WhatsApp (Fase 4) ════════════════════════════════════════
+if (!SIN) {
+  const FUT = `now() + interval '7 days'`
+  // RLS: cada negocio gestiona solo las suyas
+  await C('CRITICO', 'P1 negocio O1 crea promocion en SU negocio', async () => {
+    const r = await as('O1', `insert into promotions(restaurant_id,title,discount_percent,ends_at) values ('ra','Promo A',20,${FUT}) returning id`)
+    return [r.ok && r.n === 1, r.ok ? 'ok' : r.err]
+  })
+  await db.exec(`insert into promotions(restaurant_id,title,discount_percent,ends_at) values ('ra','Promo A',20,${FUT})`)
+  await T('CRITICO', 'P2 negocio O1 NO crea promocion en OTRO negocio', 'O1', `insert into promotions(restaurant_id,title,discount_percent,ends_at) values ('rb','Hack',50,${FUT}) returning id`, 'error')
+  await T('CRITICO', 'P3 negocio O2 NO edita promocion de OTRO negocio', 'O2', `update promotions set discount_percent=70 where restaurant_id='ra' returning id`)
+  await T('CRITICO', 'P4 negocio O2 NO borra promocion de OTRO negocio', 'O2', `delete from promotions where restaurant_id='ra' returning id`)
+  await T('CRITICO', 'P5 negocio O1 NO mueve su promocion a otro negocio', 'O1', `update promotions set restaurant_id='rb' where restaurant_id='ra' returning id`, 'error')
+  await T('ALTO', 'P6 cliente NO lee la tabla promotions', 'A', `select * from promotions`)
+  await T('ALTO', 'P7 cliente NO inserta promociones', 'A', `insert into promotions(restaurant_id,title,discount_percent,ends_at) values ('ra','Hack',50,${FUT})`, 'error')
+  await T('ALTO', 'P8 anonimo NO lee promotions', 'anon', `select * from promotions`, 'error')
+  await T('MEDIO', 'P9 porcentaje 0 y 90 rechazados', 'O1', `insert into promotions(restaurant_id,title,discount_percent,ends_at) values ('ra','Cero',0,${FUT})`, 'error')
+  await T('MEDIO', 'P10 porcentaje 90 rechazado', 'O1', `insert into promotions(restaurant_id,title,discount_percent,ends_at) values ('ra','Noventa',90,${FUT})`, 'error')
+  await T('MEDIO', 'P11 fin antes del inicio rechazado', 'O1', `insert into promotions(restaurant_id,title,discount_percent,starts_at,ends_at) values ('ra','Fechas',10,now(),now() - interval '1 day')`, 'error')
+  await T('FUNCIONA', 'P12 negocio O1 ve SUS promociones', 'O1', `select * from promotions where restaurant_id='ra'`, 'filas')
+  await T('FUNCIONA', 'P13 admin ve todas', 'AD', `select * from promotions`, 'filas')
+  // Lectura para el cliente: solo vigentes y activas
+  await db.exec(`insert into promotions(restaurant_id,title,discount_percent,starts_at,ends_at) values ('rb','Vencida',50,now() - interval '3 days', now() - interval '1 day');
+                 insert into promotions(restaurant_id,title,discount_percent,ends_at,is_active) values ('rb','Apagada',50,${FUT},false);
+                 insert into promotions(restaurant_id,title,discount_percent,starts_at,ends_at) values ('rb','Futura',50,now() + interval '2 days',${FUT})`)
+  await C('ALTO', 'P14 list_active_promotions: solo la vigente y activa (no vencida, apagada ni futura)', async () => {
+    const r = await as('A', `select title from list_active_promotions()`)
+    return [r.ok && r.rows.length === 1 && r.rows[0].title === 'Promo A', JSON.stringify(r.rows ?? r.err)]
+  })
+  await T('ALTO', 'P15 list_active_promotions: anonimo denegado', 'anon', `select * from list_active_promotions()`, 'error')
+  await C('ALTO', 'P16 get_restaurant_promo devuelve la vigente de ese negocio y nada del otro', async () => {
+    const a = await as('A', `select discount_percent from get_restaurant_promo('ra')`), b = await as('A', `select * from get_restaurant_promo('rb')`)
+    return [a.ok && a.rows[0]?.discount_percent === 20 && b.ok && b.n === 0, `ra=${JSON.stringify(a.rows)} rb=${b.n}`]
+  })
+  await T('ALTO', 'P17 cliente NO ejecuta _active_promo_percent (interna)', 'A', `select _active_promo_percent('ra')`, 'error')
+  // create_order aplica la promo en el servidor
+  const zone = (await q(`select id from delivery_zones limit 1`))[0].id
+  const mk = (coupon = 'null') => `select create_order('ra', '[{"dish_id":"da","quantity":1,"unit_price":5}]'::jsonb, 'Calle 1', '${zone}', 'cash', 50, ${coupon}, null, false) as r`
+  await C('CRITICO', 'P18 create_order aplica 20% sobre el subtotal: subtotal 5, promo 1.00, envio 1.50 -> total 5.50', async () => {
+    const r = await as('A', mk()), j = r.rows?.[0]?.r
+    return [r.ok && Number(j.discount) === 1 && Number(j.promo_discount) === 1 && Number(j.total) === 5.5, JSON.stringify(j ?? r.err)]
+  })
+  await C('CRITICO', 'P19 create_order promo + cupon de $2: descuento 3.00, total 3.50', async () => {
+    const r = await as('A', mk(`'SECRETO10'`)), j = r.rows?.[0]?.r
+    return [r.ok && Number(j.discount) === 3 && Number(j.total) === 3.5, JSON.stringify(j ?? r.err)]
+  })
+  await C('ALTO', 'P20 el negocio paga la promo: su parte se calcula sobre el subtotal ya descontado', async () => {
+    const o = await asRole('A', async run => {
+      const j = (await run(mk()))[0].r
+      await db.exec('reset role')
+      return (await q(`select subtotal, discount, total, business_amount, driver_amount, platform_amount from orders where id='${j.order_id}'`))[0]
+    })
+    const sum = Number(o.business_amount) + Number(o.driver_amount) + Number(o.platform_amount)
+    return [Math.abs(sum - Number(o.total)) < 0.011 && Number(o.discount) === 1, JSON.stringify(o)]
+  })
+  await C('ALTO', 'P21 sin promocion vigente create_order no descuenta (negocio rb)', async () => {
+    const j = (await asRole('B', run => run(`select create_order('rb', '[{"dish_id":"db","quantity":1,"unit_price":5}]'::jsonb, 'Calle 1', '${zone}', 'cash', 50, null, null, false) as r`)))[0].r
+    return [Number(j.discount) === 0 && Number(j.total) === 6.5, JSON.stringify(j)]
+  })
+  // WhatsApp
+  await db.exec(`insert into restaurants(id,name,category,business_type,owner_id,is_open,is_active,phone) values ('rl','Licoreria','x','licoreria','${U.O2}',true,true,'0991234567') on conflict do nothing`)
+  const wa = async (who, id) => (await as(who, `select get_restaurant_whatsapp('${id}') w`)).rows?.[0]?.w
+  await C('ALTO', 'W1 whatsapp: telefono del negocio en formato internacional', async () => { const w = await wa('A', 'rb'); return [w === '593991234567', String(w)] })
+  await C('ALTO', 'W2 whatsapp: sin telefono del negocio usa el del dueno', async () => { const w = await wa('A', 'ra'); return [w === '593990000003', String(w)] })
+  await C('CRITICO', 'W3 whatsapp: licoreria devuelve NULL (no se salta la verificacion de edad)', async () => { const w = await wa('A', 'rl'); return [w === null, String(w)] })
+  await C('ALTO', 'W4 whatsapp: numero falso devuelve NULL', async () => {
+    await db.exec(`update restaurants set phone='+593 99 999 8888' where id='rb'; update profiles set phone='' where id='${U.O2}'`)
+    const w = await wa('A', 'rb')
+    await db.exec(`update restaurants set phone='0991234567' where id='rb'; update profiles set phone='${phone.O2}' where id='${U.O2}'`)
+    return [w === null, String(w)]
+  })
+  await T('FUNCIONA', 'W6 negocio O1 actualiza el telefono de SU negocio', 'O1', "update restaurants set phone='0991112233' where id='ra' returning id", 'filas')
+  await T('ALTO', 'W7 negocio O1 NO cambia el telefono de OTRO negocio', 'O1', "update restaurants set phone='0990000000' where id='rb' returning id")
+  await T('ALTO', 'W5 whatsapp: anonimo denegado', 'anon', `select get_restaurant_whatsapp('rb')`, 'error')
+}
 
 // ── Informe ────────────────────────────────────────────────────────────────────
 const order = { CRITICO: 0, ALTO: 1, MEDIO: 2, FUNCIONA: 3 }
