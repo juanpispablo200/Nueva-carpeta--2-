@@ -45,7 +45,13 @@ object CashRules {
 /** Errores del servidor (códigos estables de create_order) traducidos para el cliente. */
 enum class OrderErrorKind { NETWORK, FIELD, GENERIC }
 
-data class OrderError(val code: String, val message: String, val kind: OrderErrorKind = OrderErrorKind.GENERIC)
+data class OrderError(
+    val code: String,
+    val message: String,
+    val kind: OrderErrorKind = OrderErrorKind.GENERIC,
+    /** Detalle técnico corto (código/HTTP del servidor). Se muestra solo en builds de depuración. */
+    val detail: String? = null
+)
 
 object OrderErrors {
     private val messages = mapOf(
@@ -62,17 +68,35 @@ object OrderErrors {
         "ZONA_INVALIDA" to "La zona elegida ya no está disponible. Elige otra.",
         "EDAD_NO_VERIFICADA" to "Confirma tu fecha de nacimiento para pedir productos para mayores de 18.",
         "MENOR_DE_EDAD" to "Debes ser mayor de 18 años para pedir estos productos.",
+        "EDAD_NO_CONFIRMADA" to "Marca la casilla que confirma que eres mayor de 18 años para pedir bebidas alcohólicas.",
         "RECETA_REQUERIDA" to "Sube una foto de tu receta para pedir estos productos.",
         "EFECTIVO_INSUFICIENTE" to "El monto con el que pagas no cubre el total del pedido.",
+        "EMAIL_NO_CONFIRMADO" to "Confirma tu correo con el enlace que te enviamos antes de hacer pedidos.",
         "REPARTO_INVALIDO" to "No pudimos procesar el pedido. Intenta más tarde."
     )
 
     fun fromThrowable(t: Throwable): OrderError {
         val raw = t.message.orEmpty()
+        val detail = raw.replace(Regex("\\s+"), " ").take(200).ifBlank { t::class.java.simpleName }
+
+        // El servidor no tiene la función create_order (migraciones sin aplicar): PostgREST responde 404 / PGRST202
+        if (raw.contains("PGRST202") || raw.contains("PGRST205") ||
+            raw.contains("schema cache", ignoreCase = true) ||
+            raw.contains("Could not find the function", ignoreCase = true)) {
+            return OrderError(
+                "SERVER_OUTDATED",
+                "El servidor de Jagoo aún no está actualizado para crear pedidos (falta la función create_order). Avisa al administrador; no es un problema de tu pedido.",
+                OrderErrorKind.GENERIC, detail
+            )
+        }
+        // Permisos / sesión
+        if (raw.contains("401") || raw.contains("JWT", ignoreCase = true) || raw.contains("permission denied", ignoreCase = true)) {
+            return OrderError("AUTH", "Tu sesión no tiene permiso para crear el pedido. Cierra sesión, vuelve a entrar e intenta de nuevo.", OrderErrorKind.GENERIC, detail)
+        }
 
         // PEDIDO_MINIMO:5.00
         Regex("PEDIDO_MINIMO:\\s*([0-9]+(?:\\.[0-9]+)?)").find(raw)?.let {
-            return OrderError("PEDIDO_MINIMO", "El pedido mínimo de este negocio es $${it.groupValues[1]}.", OrderErrorKind.FIELD)
+            return OrderError("PEDIDO_MINIMO", "El pedido mínimo de este negocio es $${it.groupValues[1]}.", OrderErrorKind.FIELD, detail)
         }
         for ((code, text) in messages) {
             if (raw.contains(code)) return OrderError(code, text, OrderErrorKind.FIELD)
@@ -83,9 +107,9 @@ object OrderErrors {
             lower.contains("unable to resolve") || lower.contains("timeout") ||
             lower.contains("timed out") || lower.contains("connect") || lower.contains("network")
         return if (network) {
-            OrderError("NETWORK", "Sin conexión estable. Revisa tu internet e intenta de nuevo.", OrderErrorKind.NETWORK)
+            OrderError("NETWORK", "Sin conexión estable. Revisa tu internet e intenta de nuevo.", OrderErrorKind.NETWORK, detail)
         } else {
-            OrderError("UNKNOWN", "No se pudo crear el pedido. Intenta de nuevo.")
+            OrderError("UNKNOWN", "No se pudo crear el pedido. Intenta de nuevo; si sigue fallando, avisa a soporte con el código mostrado.", OrderErrorKind.GENERIC, detail)
         }
     }
 }

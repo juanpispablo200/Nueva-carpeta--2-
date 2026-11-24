@@ -334,7 +334,7 @@ fun ProfileScreen(
                     )
                     ProfileMenuItem(
                         icon     = Icons.Default.Favorite,
-                        title    = "Restaurantes Favoritos",
+                        title    = "Negocios Favoritos",
                         subtitle = "${favIds.size} guardados",
                         onClick  = {}
                     )

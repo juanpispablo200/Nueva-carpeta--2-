@@ -101,7 +101,7 @@ fun RestaurantDetailScreen(
             contentAlignment = Alignment.Center,
             modifier = Modifier.fillMaxSize()
         ) {
-            Text("Restaurante no encontrado")
+            Text("Negocio no encontrado")
         }
         return
     }
@@ -112,7 +112,8 @@ fun RestaurantDetailScreen(
         "Todos" -> dishes
         "Populares" -> dishes.filter { it.isPopular }
         else -> dishes.filter { it.menuSection == selectedSection }
-    }
+    }
+
 
     // Búsqueda dentro del negocio (nombre o descripción), sin distinguir tildes ni mayúsculas
     val filteredDishes = if (dishQuery.isBlank()) sectionDishes else sectionDishes.filter {

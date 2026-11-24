@@ -137,7 +137,7 @@ data class ActiveOrder(
 enum class BusinessType(val key: String, val label: String, val emoji: String, val colorHex: String) {
     RESTAURANTE("restaurante", "Restaurantes", "🍽️", "#FFE082"),
     TIENDA("tienda", "Tiendas", "🛒", "#C8E6C9"),
-    FARMACIA("farmacia", "Farmacias", "💊", "#BBDEFB"),
+    FARMACIA("farmacia", "Medicamentos", "💊", "#BBDEFB"),
     LICORERIA("licoreria", "Licorerías", "🍷", "#E1BEE7");
 
     companion object {

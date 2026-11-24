@@ -3,6 +3,8 @@ package com.jagoo.app.viewmodel
 import android.app.Application
 import android.content.Context
 import android.net.Uri
+import com.jagoo.app.BuildConfig
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.jagoo.app.data.ActiveOrder
@@ -145,8 +147,14 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
     fun loadCheckoutConfig() {
         viewModelScope.launch {
             _configLoading.value = true
+            val supabase = SupabaseClient.client
+            val restId = currentRestaurantId
+
+            // Cada paso es independiente: si uno falla (p. ej. la tabla de zonas aún no
+            // existe en el servidor), los demás se cargan igual y el envío nunca queda en $0 por error.
+
+            // 1) Zonas de envío configuradas por el admin
             try {
-                val supabase = SupabaseClient.client
                 val zones = withTimeout(12_000L) {
                     supabase.from("delivery_zones")
                         .select { filter { eq("is_active", true) } }
@@ -157,27 +165,36 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
                 if (_selectedZone.value == null || zones.none { it.id == _selectedZone.value?.id }) {
                     _selectedZone.value = zones.singleOrNull()
                 }
+            } catch (e: Exception) {
+                _zones.value = emptyList()
+                _selectedZone.value = null
+                if (BuildConfig.DEBUG) Log.w("Checkout", "delivery_zones no disponible: ${e.message?.take(160)}")
+            }
 
-                val feeRows = withTimeout(12_000L) {
-                    supabase.from("settings")
-                        .select { filter { eq("key", "default_delivery_fee") } }
-                        .decodeList<CartSettingRow>()
+            // 2) Tarifa propia del negocio y pedido mínimo (el servidor usa la misma tarifa si no hay zonas)
+            if (restId != null) {
+                try {
+                    val row = withTimeout(12_000L) {
+                        supabase.from("restaurants")
+                            .select { filter { eq("id", restId) } }
+                            .decodeSingle<RestaurantFeeRow>()
+                    }
+                    _defaultFee.value = row.deliveryFee
+                    _minOrder.value = row.minOrder
+                } catch (e: Exception) {
+                    if (BuildConfig.DEBUG) Log.w("Checkout", "tarifa del negocio no disponible: ${e.message?.take(160)}")
                 }
-                _defaultFee.value = feeRows.firstOrNull()?.value?.toDoubleOrNull() ?: 0.0
 
-                currentRestaurantId?.let { restId ->
-                    val min = withTimeout(12_000L) {
+                // 3) Pedido mínimo efectivo (el del tipo de negocio manda sobre el del negocio)
+                try {
+                    _minOrder.value = withTimeout(12_000L) {
                         supabase.postgrest.rpc("get_effective_min_order", buildJsonObject {
                             put("p_restaurant_id", restId)
                         }).decodeAs<Double>()
                     }
-                    _minOrder.value = min
-                }
-            } catch (_: Exception) {
-                // Sin conexión: el servidor igual valida zona, mínimo y total al confirmar
-            } finally {
-                _configLoading.value = false
+                } catch (_: Exception) { /* se conserva el mínimo del negocio */ }
             }
+            _configLoading.value = false
         }
     }
 
@@ -376,7 +393,7 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val supabase = SupabaseClient.client
                 val results = supabase.postgrest
-                    .rpc("validate_coupon", buildJsonObject {
+                    .rpc("check_coupon", buildJsonObject {
                         put("p_code", code)
                         put("p_order_total", getSubtotal() + deliveryFee)
                     })
@@ -395,6 +412,7 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
                 _couponError.value = when {
                     msg.contains("no válido") || msg.contains("expirado") -> "Cupón no válido o expirado"
                     msg.contains("mínimo")                                 -> msg
+                    msg.contains("DEMASIADOS_INTENTOS")                    -> "Demasiados intentos. Espera unos minutos e intenta de nuevo."
                     else                                                   -> "Error al validar el cupón"
                 }
             } finally {
@@ -434,7 +452,7 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
      * Crea el pedido en el servidor y usa el uuid REAL que devuelve en toda la app.
      * paymentMethod: "cash" o "transfer". cashTendered: con cuánto paga (solo efectivo).
      */
-    fun placeOrder(paymentMethod: String, cashTendered: Double?) {
+    fun placeOrder(paymentMethod: String, cashTendered: Double?, ageConfirmed: Boolean = false) {
         if (_orderState.value is OrderPlacement.Loading) return
         val items = _cartItems.value
         val restId = currentRestaurantId
@@ -475,7 +493,8 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
                         paymentMethod    = paymentMethod,
                         cashTendered     = if (paymentMethod == "cash") cashTendered else null,
                         couponCode       = coupon,
-                        prescriptionPath = uploadedRxPath
+                        prescriptionPath = uploadedRxPath,
+                        ageConfirmed     = ageConfirmed
                     )
                 }
 
@@ -518,7 +537,9 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
                 uploadedRxPath?.let { path ->
                     try { supabase.storage["prescriptions"].delete(path) } catch (_: Exception) {}
                 }
-                _orderState.value = OrderPlacement.Failed(OrderErrors.fromThrowable(e))
+                val err = OrderErrors.fromThrowable(e)
+                if (BuildConfig.DEBUG) Log.e("CrearPedido", "code=${err.code} tipo=${e::class.java.simpleName} detalle=${err.detail}")
+                _orderState.value = OrderPlacement.Failed(err)
             }
         }
     }
@@ -625,7 +646,10 @@ data class AgeGateRequest(
 )
 
 @Serializable
-private data class CartSettingRow(val key: String = "", val value: String = "")
+private data class BirthDateRow(@SerialName("birth_date") val birthDate: String? = null)
 
 @Serializable
-private data class BirthDateRow(@SerialName("birth_date") val birthDate: String? = null)
+private data class RestaurantFeeRow(
+    @SerialName("delivery_fee") val deliveryFee: Double = 0.0,
+    @SerialName("min_order")    val minOrder: Double = 0.0
+)

@@ -76,14 +76,14 @@ fun OrderDto.toActiveOrder(): ActiveOrder {
         timelineItems     = buildTimeline(status),
         courier           = courierName?.let { CourierInfo(name = it, vehicle = courierVehicle ?: "", plate = courierPlate ?: "") },
         rawStatus         = status,
-        paymentMethod     = paymentMethod,
-        paymentStatus     = paymentStatus,
+        paymentMethod     = paymentMethod ?: "cash",
+        paymentStatus     = paymentStatus ?: "pending",
         changeDue         = changeDue,
         transferDeadlineMillis = parseIsoMillis(transferDeadline),
         cancelReason      = cancelReason,
         ageCheckRequired  = ageCheckRequired,
         prescriptionRequired = prescriptionRequired,
-        prescriptionStatus   = prescriptionStatus
+        prescriptionStatus   = prescriptionStatus ?: "none"
     )
 }
 

@@ -24,6 +24,10 @@
         <meta-data
             android:name="firebase_crashlytics_collection_enabled"
             android:value="${crashlyticsEnabled}" />
+        <!-- Analytics: misma regla (apagado en debug, activo en release) -->
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
+            android:value="${crashlyticsEnabled}" />
 
         <!-- Google Maps API Key (valor en local.properties → manifestPlaceholders) -->
         <meta-data

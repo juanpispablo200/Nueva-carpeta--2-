@@ -42,7 +42,7 @@ class RatingViewModel(application: Application) : AndroidViewModel(application) 
 
     fun submit(orderId: String) {
         if (_restaurantStars.value == 0) {
-            _error.value = "Selecciona al menos una estrella para el restaurante"
+            _error.value = "Selecciona al menos una estrella para el negocio"
             return
         }
         _loading.value = true

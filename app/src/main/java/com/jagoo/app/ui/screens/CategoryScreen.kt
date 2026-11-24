@@ -33,7 +33,7 @@ fun CategoryScreen(
     onNavigateToRestaurant: (String) -> Unit,
     onBackClick: () -> Unit
 ) {
-    val restaurants by productViewModel.restaurants.collectAsState()
+    val restaurants by productViewModel.visibleRestaurants.collectAsState()
     val selectedFilter by productViewModel.selectedFilterChip.collectAsState()
     val filterChips = RestaurantData.filterChips
 

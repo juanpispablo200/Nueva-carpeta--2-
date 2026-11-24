@@ -29,6 +29,8 @@ sealed class AuthState {
     object Idle       : AuthState()
     object Loading    : AuthState()
     object Customer   : AuthState()
+    /** Cuenta creada; falta confirmar el correo antes de poder entrar. */
+    data class ConfirmEmail(val email: String) : AuthState()
     data class WrongRole(val role: String) : AuthState()
     data class Error(val message: String)  : AuthState()
     object LoggedOut  : AuthState()
@@ -140,8 +142,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _state.value = AuthState.Loading
             try {
+                // El enlace del correo lleva a la página pública de confirmación (si hay web.base.url)
+                val redirect = com.jagoo.app.BuildConfig.WEB_BASE_URL
+                    .takeIf { it.isNotBlank() }?.let { "$it/email-confirmado" }
                 withTimeout(10_000L) {
-                    auth.signUpWith(Email) {
+                    auth.signUpWith(Email, redirectUrl = redirect) {
                         email    = _email.value.trim()
                         password = _password.value
                         data     = kotlinx.serialization.json.buildJsonObject {
@@ -149,14 +154,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 }
-                try {
-                    withTimeout(8_000L) {
-                        auth.signInWith(Email) {
-                            email    = _email.value.trim()
-                            password = _password.value
-                        }
-                    }
-                } catch (_: Exception) {}
+                // Con "Confirm email" activado en Supabase no hay sesión hasta que el
+                // usuario abre el enlace del correo: se le avisa en vez de entrar.
+                if (auth.currentSessionOrNull() == null) {
+                    _state.value = AuthState.ConfirmEmail(_email.value.trim())
+                    return@launch
+                }
 
                 resolveRole()
             } catch (e: TimeoutCancellationException) {

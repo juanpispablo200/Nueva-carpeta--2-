@@ -131,4 +131,22 @@ class OrderRulesTest {
         assertEquals("JG-A1B2C3", orderNumber("a1b2c3d4-0000-0000-0000-000000000000"))
         assertEquals("JG-1234", orderNumber("JG-1234"))
     }
+
+    // ── Errores reales observados contra el backend ──────────────────────────
+    @Test fun missing_create_order_function_is_reported_as_outdated_server() {
+        val raw = "Could not find the function public.create_order(p_delivery_address, p_items) in the schema cache (PGRST202)"
+        val e = OrderErrors.fromThrowable(Exception(raw))
+        assertEquals("SERVER_OUTDATED", e.code)
+        assertTrue(e.message.contains("create_order"))
+        assertTrue(e.detail!!.contains("PGRST202"))
+    }
+
+    @Test fun jwt_errors_ask_to_login_again() =
+        assertEquals("AUTH", OrderErrors.fromThrowable(Exception("JWT expired")).code)
+
+    @Test fun unknown_error_keeps_short_technical_detail() {
+        val e = OrderErrors.fromThrowable(Exception("boom ".repeat(100)))
+        assertEquals("UNKNOWN", e.code)
+        assertTrue(e.detail!!.length <= 200)
+    }
 }

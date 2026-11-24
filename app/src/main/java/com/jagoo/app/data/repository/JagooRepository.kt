@@ -211,7 +211,8 @@ class SupabaseJagooRepository(
         paymentMethod: String,
         cashTendered: Double?,
         couponCode: String?,
-        prescriptionPath: String?
+        prescriptionPath: String?,
+        ageConfirmed: Boolean
     ): com.jagoo.app.data.remote.CreateOrderResponse {
         val params = kotlinx.serialization.json.buildJsonObject {
             put("p_restaurant_id", restaurantId)
@@ -240,6 +241,7 @@ class SupabaseJagooRepository(
             put("p_cash_tendered", cashTendered)
             put("p_coupon_code", couponCode)
             put("p_prescription_path", prescriptionPath)
+            put("p_age_confirmed", ageConfirmed)
         }
         return supabase.postgrest.rpc("create_order", params)
             .decodeAs<com.jagoo.app.data.remote.CreateOrderResponse>()

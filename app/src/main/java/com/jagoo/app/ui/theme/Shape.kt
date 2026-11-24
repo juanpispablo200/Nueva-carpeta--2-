@@ -13,7 +13,7 @@ val AppShapes = Shapes(
 )
 
 val PillShape = CircleShape
-val HeaderBottomShape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)
+val HeaderBottomShape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
 val CardShape = RoundedCornerShape(18.dp)
 val CouponShape = RoundedCornerShape(16.dp)
 val ProductCardShape = RoundedCornerShape(18.dp)

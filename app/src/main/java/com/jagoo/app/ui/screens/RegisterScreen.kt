@@ -74,6 +74,15 @@ fun RegisterScreen(
         if (state is AuthState.Customer) onRegisterSuccess()
     }
 
+    // Cuenta creada: hay que confirmar el correo antes de entrar
+    if (state is AuthState.ConfirmEmail) {
+        ConfirmEmailNotice(
+            email = (state as AuthState.ConfirmEmail).email,
+            onGoToLogin = { authViewModel.clearError(); onNavigateToLogin() }
+        )
+        return
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -262,6 +271,55 @@ fun RegisterScreen(
                     text = "¿Ya tienes cuenta? Inicia sesión",
                     fontFamily = PoppinsFontFamily,
                     fontSize = 14.sp,
+                    color = JagooGreen
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConfirmEmailNotice(email: String, onGoToLogin: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxSize().background(JagooBackground).padding(JagooSpacing.xl),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Default.Email,
+                contentDescription = null,
+                tint = JagooGreen,
+                modifier = Modifier.size(56.dp)
+            )
+            Spacer(modifier = Modifier.height(JagooSpacing.lg))
+            Text(
+                text = "Revisa tu correo",
+                fontFamily = PoppinsFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 24.sp,
+                color = JagooTextPrimary
+            )
+            Spacer(modifier = Modifier.height(JagooSpacing.sm))
+            Text(
+                text = "Te enviamos un enlace de confirmación a $email. Ábrelo para activar tu cuenta y luego inicia sesión. Si no lo ves, revisa la carpeta de spam.",
+                fontFamily = PoppinsFontFamily,
+                fontSize = 14.sp,
+                color = JagooTextMuted,
+                textAlign = TextAlign.Center,
+                lineHeight = 20.sp
+            )
+            Spacer(modifier = Modifier.height(JagooSpacing.xl))
+            Button(
+                onClick = onGoToLogin,
+                shape = PillShape,
+                colors = ButtonDefaults.buttonColors(containerColor = JagooYellow),
+                modifier = Modifier.fillMaxWidth().height(52.dp)
+            ) {
+                Text(
+                    text = "Ir a iniciar sesión",
+                    fontFamily = PoppinsFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
                     color = JagooGreen
                 )
             }

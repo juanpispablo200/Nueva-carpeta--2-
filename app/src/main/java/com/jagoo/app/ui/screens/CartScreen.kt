@@ -64,7 +64,7 @@ fun CartScreen(
 ) {
     val cartItems by cartViewModel.cartItems.collectAsState()
 
-    val restaurantName = cartViewModel.currentRestaurantName ?: "Restaurante"
+    val restaurantName = cartViewModel.currentRestaurantName ?: "Negocio"
     val subtotal = cartViewModel.getSubtotal()
     val total = cartViewModel.getTotal()
     val deliveryFee = cartViewModel.deliveryFee
@@ -109,7 +109,7 @@ fun CartScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Restaurant,
-                                contentDescription = "Restaurante",
+                                contentDescription = "Negocio",
                                 tint = JagooGreen,
                                 modifier = Modifier.size(14.dp)
                             )
@@ -212,7 +212,7 @@ fun CartScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Envío de restaurante",
+                                text = "Envío del negocio",
                                 fontFamily = PoppinsFontFamily,
                                 fontWeight = FontWeight.Medium,
                                 fontSize = 14.sp,
@@ -325,7 +325,7 @@ private fun EmptyCartState(
         Spacer(modifier = Modifier.height(JagooSpacing.sm))
 
         Text(
-            text = "Explora tus restaurantes favoritos\ny agrega tus platos preferidos",
+            text = "Explora tus negocios favoritos\ny agrega tus productos preferidos",
             fontFamily = PoppinsFontFamily,
             fontWeight = FontWeight.Normal,
             fontSize = 14.sp,
@@ -345,7 +345,7 @@ private fun EmptyCartState(
                 .height(48.dp)
         ) {
             Text(
-                text = "Explorar Restaurantes",
+                text = "Explorar negocios",
                 fontFamily = PoppinsFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,

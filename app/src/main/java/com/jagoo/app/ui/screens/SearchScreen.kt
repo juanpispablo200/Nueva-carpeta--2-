@@ -46,7 +46,7 @@ fun SearchScreen(
     cartViewModel: CartViewModel,
     onNavigateToRestaurant: (String) -> Unit
 ) {
-    val restaurants   by productViewModel.restaurants.collectAsState()
+    val restaurants   by productViewModel.visibleRestaurants.collectAsState()
     val dishes        by productViewModel.dishes.collectAsState()
     val searchQuery   by productViewModel.searchQuery.collectAsState()
     val selectedFilter by productViewModel.selectedFilterChip.collectAsState()
@@ -62,7 +62,7 @@ fun SearchScreen(
         isDebouncing = false
     }
 
-    val searchFilters = listOf("Todos", "Restaurantes", "Platos", "Mejor Evaluados", "< 30 min", "Ofertas")
+    val searchFilters = listOf("Todos", "Negocios", "Platos", "Mejor Evaluados", "< 30 min", "Ofertas")
 
     val matchingRestaurants = if (debouncedQuery.isBlank()) {
         productViewModel.getFilteredRestaurants()
@@ -91,7 +91,7 @@ fun SearchScreen(
         JagooHeader(
             showSearchBar       = true,
             searchQuery         = searchQuery,
-            placeholderText     = "Busca restaurantes o platos...",
+            placeholderText     = "Busca negocios o productos...",
             onSearchQueryChange = { productViewModel.updateSearchQuery(it) }
         )
 
@@ -151,7 +151,7 @@ fun SearchScreen(
             modifier              = Modifier.fillMaxSize()
         ) {
             // Platos encontrados
-            if (matchingDishes.isNotEmpty() && selectedFilter != "Restaurantes") {
+            if (matchingDishes.isNotEmpty() && selectedFilter != "Negocios") {
                 item {
                     Text(
                         text       = "Platos (${matchingDishes.size})",
@@ -178,9 +178,9 @@ fun SearchScreen(
                 item {
                     Text(
                         text = if (debouncedQuery.isBlank())
-                            "Restaurantes destacados"
+                            "Negocios destacados"
                         else
-                            "Restaurantes (${matchingRestaurants.size})",
+                            "Negocios (${matchingRestaurants.size})",
                         fontFamily = PoppinsFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize   = 16.sp,

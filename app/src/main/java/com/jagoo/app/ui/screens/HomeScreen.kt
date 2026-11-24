@@ -115,7 +115,7 @@ fun HomeScreen(
                 modifier = androidx.compose.ui.Modifier
                     .fillMaxWidth()
                     .padding(32.dp)
-                    .semantics { contentDescription = "Cargando restaurantes" },
+                    .semantics { contentDescription = "Cargando negocios" },
                 contentAlignment = Alignment.Center
             ) {
                 androidx.compose.material3.CircularProgressIndicator(color = com.jagoo.app.ui.theme.JagooGreen)
@@ -254,7 +254,7 @@ fun HomeScreen(
                     color = JagooGreen,
                     modifier = Modifier
                         .minimumInteractiveComponentSize()
-                        .clickable(role = Role.Button, onClickLabel = "Ver todos los restaurantes") {
+                        .clickable(role = Role.Button, onClickLabel = "Ver todos los negocios") {
                             onNavigateToCategory("Todos")
                         }
                 )

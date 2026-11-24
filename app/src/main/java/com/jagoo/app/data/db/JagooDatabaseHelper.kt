@@ -21,7 +21,7 @@ class JagooDatabaseHelper(context: Context) : SQLiteOpenHelper(
 
     companion object {
         const val DATABASE_NAME = "jagoo_delivery.db"
-        const val DATABASE_VERSION = 1
+        const val DATABASE_VERSION = 2
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -69,7 +69,11 @@ class JagooDatabaseHelper(context: Context) : SQLiteOpenHelper(
                 is_open INTEGER DEFAULT 1,
                 is_featured INTEGER DEFAULT 0,
                 is_offer INTEGER DEFAULT 0,
-                offer_text TEXT
+                offer_text TEXT,
+                business_type TEXT NOT NULL DEFAULT 'restaurante'
+                    CHECK (business_type IN ('restaurante','tienda','farmacia','licoreria')),
+                permit_number TEXT,
+                is_active INTEGER NOT NULL DEFAULT 1
             );
             """.trimIndent()
         )
@@ -102,7 +106,9 @@ class JagooDatabaseHelper(context: Context) : SQLiteOpenHelper(
                 is_available INTEGER DEFAULT 1,
                 is_popular INTEGER DEFAULT 0,
                 is_offer INTEGER DEFAULT 0,
-                offer_badge TEXT
+                offer_badge TEXT,
+                is_age_restricted INTEGER NOT NULL DEFAULT 0,
+                requires_prescription INTEGER NOT NULL DEFAULT 0
             );
             """.trimIndent()
         )
@@ -145,7 +151,13 @@ class JagooDatabaseHelper(context: Context) : SQLiteOpenHelper(
                 delivery_fee REAL NOT NULL,
                 total REAL NOT NULL,
                 status TEXT NOT NULL,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                payment_method TEXT NOT NULL DEFAULT 'cash'
+                    CHECK (payment_method IN ('cash','transfer')),
+                payment_status TEXT NOT NULL DEFAULT 'pending',
+                change_due REAL,
+                age_check_required INTEGER NOT NULL DEFAULT 0,
+                cancel_reason TEXT
             );
             """.trimIndent()
         )
@@ -182,19 +194,47 @@ class JagooDatabaseHelper(context: Context) : SQLiteOpenHelper(
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS addresses")
-        db.execSQL("DROP TABLE IF EXISTS order_items")
-        db.execSQL("DROP TABLE IF EXISTS orders")
-        db.execSQL("DROP TABLE IF EXISTS options")
-        db.execSQL("DROP TABLE IF EXISTS option_groups")
-        db.execSQL("DROP TABLE IF EXISTS dishes")
-        db.execSQL("DROP TABLE IF EXISTS menu_sections")
-        db.execSQL("DROP TABLE IF EXISTS restaurants")
-        db.execSQL("DROP TABLE IF EXISTS users")
-        db.execSQL("DROP TABLE IF EXISTS roles")
-        onCreate(db)
+        // Migracion incremental: se agregan columnas, nunca se borran tablas ni datos del usuario.
+        if (oldVersion < 2) migrateToV2(db)
     }
 
+    override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        // El esquema nuevo es compatible hacia atras (solo agrega columnas con valor por defecto).
+    }
+
+    /**
+     * v2: tipo de negocio generico (restaurante, tienda, farmacia, licoreria), marcas +18 en
+     * productos y datos de pago en pedidos. Los nombres son iguales a los de Supabase.
+     */
+    private fun migrateToV2(db: SQLiteDatabase) {
+        addColumnIfMissing(db, "restaurants", "business_type",
+            "TEXT NOT NULL DEFAULT 'restaurante' CHECK (business_type IN ('restaurante','tienda','farmacia','licoreria'))")
+        addColumnIfMissing(db, "restaurants", "permit_number", "TEXT")
+        addColumnIfMissing(db, "restaurants", "is_active", "INTEGER NOT NULL DEFAULT 1")
+
+        addColumnIfMissing(db, "dishes", "is_age_restricted", "INTEGER NOT NULL DEFAULT 0")
+        addColumnIfMissing(db, "dishes", "requires_prescription", "INTEGER NOT NULL DEFAULT 0")
+
+        addColumnIfMissing(db, "orders", "payment_method",
+            "TEXT NOT NULL DEFAULT 'cash' CHECK (payment_method IN ('cash','transfer'))")
+        addColumnIfMissing(db, "orders", "payment_status", "TEXT NOT NULL DEFAULT 'pending'")
+        addColumnIfMissing(db, "orders", "change_due", "REAL")
+        addColumnIfMissing(db, "orders", "age_check_required", "INTEGER NOT NULL DEFAULT 0")
+        addColumnIfMissing(db, "orders", "cancel_reason", "TEXT")
+
+        // Negocios y productos nuevos del catalogo de ejemplo (farmacia y licoreria), sin pisar nada existente
+        seedCatalog(db)
+    }
+
+    private fun addColumnIfMissing(db: SQLiteDatabase, table: String, column: String, definition: String) {
+        db.rawQuery("PRAGMA table_info($table)", null).use { cursor ->
+            val nameIdx = cursor.getColumnIndex("name")
+            while (cursor.moveToNext()) {
+                if (cursor.getString(nameIdx) == column) return
+            }
+        }
+        db.execSQL("ALTER TABLE $table ADD COLUMN $column $definition")
+    }
     private fun seedInitialData(db: SQLiteDatabase) {
         // Seed Roles
         db.execSQL("INSERT INTO roles (id, name) VALUES ('r_admin', 'RESTAURANT_OWNER'), ('r_customer', 'CUSTOMER');")
@@ -219,70 +259,7 @@ class JagooDatabaseHelper(context: Context) : SQLiteOpenHelper(
         )
         users.forEach { db.insert("users", null, it) }
 
-        // Seed Restaurants
-        RestaurantData.restaurants.forEach { r ->
-            val cv = ContentValues().apply {
-                put("id", r.id)
-                put("name", r.name)
-                put("category", r.category)
-                put("description", r.description)
-                put("logo_url", r.logoUrl)
-                put("cover_url", r.coverUrl)
-                put("brand_color", r.brandColorHex)
-                put("rating", r.rating)
-                put("review_count", r.reviewCount)
-                put("delivery_time", r.deliveryTime)
-                put("delivery_fee", r.deliveryFee)
-                put("min_order", r.minOrder)
-                put("is_open", if (r.isOpen) 1 else 0)
-                put("is_featured", if (r.isFeatured) 1 else 0)
-                put("is_offer", if (r.isOffer) 1 else 0)
-                put("offer_text", r.offerText)
-            }
-            db.insert("restaurants", null, cv)
-        }
-
-        // Seed Menu Sections & Dishes
-        RestaurantData.dishes.forEach { d ->
-            val cv = ContentValues().apply {
-                put("id", d.id)
-                put("restaurant_id", d.restaurantId)
-                put("restaurant_name", d.restaurantName)
-                put("section_name", d.menuSection)
-                put("name", d.name)
-                put("description", d.description)
-                put("price", d.price)
-                put("image_url", d.imageUrl)
-                put("is_available", if (d.isAvailable) 1 else 0)
-                put("is_popular", if (d.isPopular) 1 else 0)
-                put("is_offer", if (d.isOffer) 1 else 0)
-                put("offer_badge", d.offerBadge)
-            }
-            db.insert("dishes", null, cv)
-
-            // Seed Option Groups for dish
-            d.optionGroups.forEach { og ->
-                val ogCv = ContentValues().apply {
-                    put("id", og.id)
-                    put("dish_id", d.id)
-                    put("title", og.title)
-                    put("is_required", if (og.isRequired) 1 else 0)
-                    put("max_selection", og.maxSelection)
-                }
-                db.insert("option_groups", null, ogCv)
-
-                og.options.forEach { opt ->
-                    val optCv = ContentValues().apply {
-                        put("id", opt.id)
-                        put("group_id", og.id)
-                        put("name", opt.name)
-                        put("price", opt.price)
-                        put("is_available", 1)
-                    }
-                    db.insert("options", null, optCv)
-                }
-            }
-        }
+        seedCatalog(db)
 
         // Seed Addresses
         val addresses = listOf(
@@ -303,6 +280,78 @@ class JagooDatabaseHelper(context: Context) : SQLiteOpenHelper(
     }
 
     // --- MÉTODOS DE LECTURA Y ESCRITURA DE RESTAURANTES Y PLATOS ---
+
+    /** Inserta negocios, productos y opciones de ejemplo. CONFLICT_IGNORE: lo que ya existe no se toca. */
+    private fun seedCatalog(db: SQLiteDatabase) {
+        // Seed Restaurants
+        RestaurantData.restaurants.forEach { r ->
+            val cv = ContentValues().apply {
+                put("id", r.id)
+                put("name", r.name)
+                put("category", r.category)
+                put("description", r.description)
+                put("logo_url", r.logoUrl)
+                put("cover_url", r.coverUrl)
+                put("brand_color", r.brandColorHex)
+                put("rating", r.rating)
+                put("review_count", r.reviewCount)
+                put("delivery_time", r.deliveryTime)
+                put("delivery_fee", r.deliveryFee)
+                put("min_order", r.minOrder)
+                put("is_open", if (r.isOpen) 1 else 0)
+                put("is_featured", if (r.isFeatured) 1 else 0)
+                put("is_offer", if (r.isOffer) 1 else 0)
+                put("offer_text", r.offerText)
+                put("business_type", r.businessType)
+                put("is_active", if (r.isActive) 1 else 0)
+            }
+            db.insertWithOnConflict("restaurants", null, cv, SQLiteDatabase.CONFLICT_IGNORE)
+        }
+
+        // Seed Menu Sections & Dishes
+        RestaurantData.dishes.forEach { d ->
+            val cv = ContentValues().apply {
+                put("id", d.id)
+                put("restaurant_id", d.restaurantId)
+                put("restaurant_name", d.restaurantName)
+                put("section_name", d.menuSection)
+                put("name", d.name)
+                put("description", d.description)
+                put("price", d.price)
+                put("image_url", d.imageUrl)
+                put("is_available", if (d.isAvailable) 1 else 0)
+                put("is_popular", if (d.isPopular) 1 else 0)
+                put("is_offer", if (d.isOffer) 1 else 0)
+                put("offer_badge", d.offerBadge)
+                put("is_age_restricted", if (d.isAgeRestricted) 1 else 0)
+                put("requires_prescription", if (d.requiresPrescription) 1 else 0)
+            }
+            db.insertWithOnConflict("dishes", null, cv, SQLiteDatabase.CONFLICT_IGNORE)
+
+            // Seed Option Groups for dish
+            d.optionGroups.forEach { og ->
+                val ogCv = ContentValues().apply {
+                    put("id", og.id)
+                    put("dish_id", d.id)
+                    put("title", og.title)
+                    put("is_required", if (og.isRequired) 1 else 0)
+                    put("max_selection", og.maxSelection)
+                }
+                db.insertWithOnConflict("option_groups", null, ogCv, SQLiteDatabase.CONFLICT_IGNORE)
+
+                og.options.forEach { opt ->
+                    val optCv = ContentValues().apply {
+                        put("id", opt.id)
+                        put("group_id", og.id)
+                        put("name", opt.name)
+                        put("price", opt.price)
+                        put("is_available", 1)
+                    }
+                    db.insertWithOnConflict("options", null, optCv, SQLiteDatabase.CONFLICT_IGNORE)
+                }
+            }
+        }
+    }
 
     fun getAllRestaurants(): List<Restaurant> {
         val list = mutableListOf<Restaurant>()
@@ -327,7 +376,9 @@ class JagooDatabaseHelper(context: Context) : SQLiteOpenHelper(
                         brandColorHex = cursor.getString(cursor.getColumnIndexOrThrow("brand_color")) ?: "#FFD600",
                         isFeatured = cursor.getInt(cursor.getColumnIndexOrThrow("is_featured")) == 1,
                         isOffer = cursor.getInt(cursor.getColumnIndexOrThrow("is_offer")) == 1,
-                        offerText = cursor.getString(cursor.getColumnIndexOrThrow("offer_text"))
+                        offerText = cursor.getString(cursor.getColumnIndexOrThrow("offer_text")),
+                        businessType = cursor.getString(cursor.getColumnIndexOrThrow("business_type")) ?: "restaurante",
+                        isActive = cursor.getInt(cursor.getColumnIndexOrThrow("is_active")) == 1
                     )
                 )
             } while (cursor.moveToNext())
@@ -367,7 +418,9 @@ class JagooDatabaseHelper(context: Context) : SQLiteOpenHelper(
                         isAvailable = cursor.getInt(cursor.getColumnIndexOrThrow("is_available")) == 1,
                         isPopular = cursor.getInt(cursor.getColumnIndexOrThrow("is_popular")) == 1,
                         isOffer = cursor.getInt(cursor.getColumnIndexOrThrow("is_offer")) == 1,
-                        offerBadge = cursor.getString(cursor.getColumnIndexOrThrow("offer_badge"))
+                        offerBadge = cursor.getString(cursor.getColumnIndexOrThrow("offer_badge")),
+                        isAgeRestricted = cursor.getInt(cursor.getColumnIndexOrThrow("is_age_restricted")) == 1,
+                        requiresPrescription = cursor.getInt(cursor.getColumnIndexOrThrow("requires_prescription")) == 1
                     )
                 )
             } while (cursor.moveToNext())
@@ -434,6 +487,8 @@ class JagooDatabaseHelper(context: Context) : SQLiteOpenHelper(
             put("is_popular", if (dish.isPopular) 1 else 0)
             put("is_offer", if (dish.isOffer) 1 else 0)
             put("offer_badge", dish.offerBadge)
+            put("is_age_restricted", if (dish.isAgeRestricted) 1 else 0)
+            put("requires_prescription", if (dish.requiresPrescription) 1 else 0)
         }
         db.insertWithOnConflict("dishes", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
     }
@@ -465,6 +520,12 @@ class JagooDatabaseHelper(context: Context) : SQLiteOpenHelper(
             put("total", order.total)
             put("status", order.statusStep.name)
             put("created_at", System.currentTimeMillis().toString())
+            // Solo valores validos (el CHECK de la tabla acepta 'cash' y 'transfer')
+            put("payment_method", if (order.paymentMethod == "transfer") "transfer" else "cash")
+            put("payment_status", order.paymentStatus)
+            put("change_due", order.changeDue)
+            put("age_check_required", if (order.ageCheckRequired) 1 else 0)
+            put("cancel_reason", order.cancelReason)
         }
         db.insertWithOnConflict("orders", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
     }
@@ -503,7 +564,12 @@ class JagooDatabaseHelper(context: Context) : SQLiteOpenHelper(
                         estimatedMinutes  = 25,
                         statusStep        = step,
                         timelineItems     = RestaurantData.sampleTimelineItems,
-                        courier           = null
+                        courier           = null,
+                        paymentMethod     = cursor.getString(cursor.getColumnIndexOrThrow("payment_method")) ?: "cash",
+                        paymentStatus     = cursor.getString(cursor.getColumnIndexOrThrow("payment_status")) ?: "pending",
+                        changeDue         = cursor.getColumnIndexOrThrow("change_due").let { if (cursor.isNull(it)) null else cursor.getDouble(it) },
+                        ageCheckRequired  = cursor.getInt(cursor.getColumnIndexOrThrow("age_check_required")) == 1,
+                        cancelReason      = cursor.getString(cursor.getColumnIndexOrThrow("cancel_reason"))
                     )
                 )
             } while (cursor.moveToNext())

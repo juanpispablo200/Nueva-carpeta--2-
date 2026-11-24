@@ -138,6 +138,43 @@ object RestaurantData {
             brandColorHex = "#2E7D32",
             isFeatured = false,
             isOffer = false
+        ),
+        // --- Otros tipos de negocio (mismo modelo que un restaurante) ---
+        Restaurant(
+            id = "r8",
+            name = "Farmacia Amazonía",
+            category = "Farmacia",
+            description = "Medicamentos de venta libre, cuidado personal y botiquín. Sin receta.",
+            logoUrl = "https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=300",
+            coverUrl = "https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=800",
+            rating = 4.6,
+            reviewCount = 88,
+            deliveryTime = "20-30 min",
+            deliveryFee = 1.50,
+            minOrder = 3.00,
+            isOpen = true,
+            brandColorHex = "#1565C0",
+            isFeatured = false,
+            isOffer = false,
+            businessType = "farmacia"
+        ),
+        Restaurant(
+            id = "r9",
+            name = "Licorería El Puente",
+            category = "Licorería",
+            description = "Cervezas, vinos y licores. Venta solo a mayores de 18 años.",
+            logoUrl = "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?w=300",
+            coverUrl = "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=800",
+            rating = 4.4,
+            reviewCount = 64,
+            deliveryTime = "25-35 min",
+            deliveryFee = 1.50,
+            minOrder = 5.00,
+            isOpen = true,
+            brandColorHex = "#6A1B9A",
+            isFeatured = false,
+            isOffer = false,
+            businessType = "licoreria"
         )
     )
 
@@ -484,6 +521,52 @@ object RestaurantData {
             menuSection = "Smoothies",
             isPopular = false,
             isOffer = false
+        ),
+        // --- Farmacia Amazonía (r8): solo venta libre ---
+        Dish(
+            id = "d_farm1",
+            restaurantId = "r8",
+            restaurantName = "Farmacia Amazonía",
+            name = "Paracetamol 500 mg x 10",
+            description = "Analgésico y antifebril de venta libre.",
+            price = 1.80,
+            imageUrl = "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=500",
+            menuSection = "Venta libre",
+            isPopular = true
+        ),
+        Dish(
+            id = "d_farm2",
+            restaurantId = "r8",
+            restaurantName = "Farmacia Amazonía",
+            name = "Suero oral 500 ml",
+            description = "Rehidratación oral, sabor naranja.",
+            price = 2.20,
+            imageUrl = "https://images.unsplash.com/photo-1550572017-edd951b55104?w=500",
+            menuSection = "Venta libre"
+        ),
+        // --- Licorería El Puente (r9): todo +18 ---
+        Dish(
+            id = "d_lic1",
+            restaurantId = "r9",
+            restaurantName = "Licorería El Puente",
+            name = "Cerveza Pilsener 600 ml",
+            description = "Botella retornable, bien fría.",
+            price = 1.75,
+            imageUrl = "https://images.unsplash.com/photo-1608270586620-248524c67de9?w=500",
+            menuSection = "Cervezas",
+            isPopular = true,
+            isAgeRestricted = true
+        ),
+        Dish(
+            id = "d_lic2",
+            restaurantId = "r9",
+            restaurantName = "Licorería El Puente",
+            name = "Vino tinto 750 ml",
+            description = "Vino tinto seco de mesa.",
+            price = 9.50,
+            imageUrl = "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=500",
+            menuSection = "Vinos",
+            isAgeRestricted = true
         )
     )
 

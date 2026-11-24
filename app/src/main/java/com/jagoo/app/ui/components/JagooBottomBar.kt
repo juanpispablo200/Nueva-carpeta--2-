@@ -1,6 +1,7 @@
 package com.jagoo.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -57,6 +58,8 @@ fun JagooBottomBar(
 ) {
     Column(
         modifier = Modifier
+            .shadow(12.dp, androidx.compose.foundation.shape.RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), clip = false)
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
             .fillMaxWidth()
             .background(JagooCardWhite)
     ) {

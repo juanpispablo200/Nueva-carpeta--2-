@@ -54,8 +54,9 @@ ktor-okhttp  = { group = "io.ktor", name = "ktor-client-okhttp",  version.ref = 
 kotlin-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinSerialization" }
 # Firebase
 firebase-bom      = { group = "com.google.firebase", name = "firebase-bom",      version.ref = "firebaseBom" }
-firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging-ktx" }
-firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics-ktx" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
+firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
+firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 
 [plugins]
 android-application  = { id = "com.android.application",                       version.ref = "agp"           }

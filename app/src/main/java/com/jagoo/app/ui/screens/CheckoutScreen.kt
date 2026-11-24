@@ -56,6 +56,7 @@ import com.jagoo.app.ui.theme.JagooRed
 import com.jagoo.app.ui.theme.JagooTextMuted
 import com.jagoo.app.ui.theme.JagooTextPrimary
 import com.jagoo.app.ui.theme.JagooYellow
+import com.jagoo.app.ui.theme.JagooHeaderBrush
 import com.jagoo.app.ui.theme.PillShape
 import com.jagoo.app.ui.theme.PoppinsFontFamily
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -64,6 +65,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -72,6 +76,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
+import com.jagoo.app.BuildConfig
 import com.jagoo.app.data.CashRules
 import com.jagoo.app.ui.components.ErrorCard
 import com.jagoo.app.ui.components.NoticeCard
@@ -118,6 +123,7 @@ fun CheckoutScreen(
     // Método de pago: efectivo o transferencia
     var paymentMethod by rememberSaveable { mutableStateOf("cash") }
     var cashText by rememberSaveable { mutableStateOf("") }
+    var ageConfirmed by rememberSaveable { mutableStateOf(false) }
     val tendered = CashRules.parseAmount(cashText)
     val change = tendered?.let { CashRules.change(total, it) }
     val cashError = paymentMethod == "cash" && cashText.isNotBlank() && change == null
@@ -154,6 +160,7 @@ fun CheckoutScreen(
 
     val canConfirm = primaryAddress != null && cartItems.isNotEmpty() && !loading &&
         !belowMinimum && !zoneMissing &&
+        (!hasAgeRestricted || ageConfirmed) &&
         (paymentMethod == "transfer" || (tendered != null && change != null)) &&
         (!needsPrescription || prescriptionUri != null)
 
@@ -166,7 +173,7 @@ fun CheckoutScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(JagooYellow)
+                .background(JagooHeaderBrush)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -209,7 +216,7 @@ fun CheckoutScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 112.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // ── Dirección de entrega ──────────────────────────────────────────
@@ -346,7 +353,7 @@ fun CheckoutScreen(
                         title = "Transferencia bancaria",
                         subtitle = "Subes el comprobante y lo verificamos. Tienes 30 minutos para subirlo.",
                         selected = paymentMethod == "transfer",
-                        onSelect = { paymentMethod = "transfer" }
+                        onSelect = { paymentMethod = "transfer"; cashText = "" }
                     )
 
                     if (paymentMethod == "cash") {
@@ -379,6 +386,32 @@ fun CheckoutScreen(
                     label = "Aviso de edad",
                     message = "Este pedido incluye productos solo para mayores de 18 años. El repartidor te pedirá la cédula al entregar."
                 )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
+                        .toggleable(
+                            value = ageConfirmed,
+                            role = Role.Checkbox,
+                            onValueChange = { ageConfirmed = it }
+                        )
+                        .semantics { contentDescription = "Confirmo que soy mayor de 18 años y mostraré mi cédula al recibir el pedido" }
+                ) {
+                    Checkbox(checked = ageConfirmed, onCheckedChange = null)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Confirmo que soy mayor de 18 años y mostraré mi cédula al recibir el pedido.",
+                        fontFamily = PoppinsFontFamily, fontSize = 13.sp, color = JagooTextPrimary
+                    )
+                }
+                if (!ageConfirmed) {
+                    Text(
+                        text = "Marca la casilla para poder confirmar el pedido.",
+                        fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = JagooRed,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+                    )
+                }
             }
             if (needsPrescription) {
                 Card(
@@ -611,7 +644,9 @@ fun CheckoutScreen(
             }
 
             // ── Confirmar ─────────────────────────────────────────────────────
-            (orderState as? OrderPlacement.Failed)?.let { ErrorCard(message = it.error.message) }
+            (orderState as? OrderPlacement.Failed)?.let {
+                ErrorCard(message = it.error.message + if (BuildConfig.DEBUG && it.error.detail != null) "\n\n[debug] ${it.error.code}: ${it.error.detail}" else "")
+            }
 
             if (belowMinimum) {
                 ErrorCard(message = "El pedido mínimo de este negocio es $${String.format("%.2f", minOrder)}. Agrega más productos.")
@@ -620,7 +655,7 @@ fun CheckoutScreen(
             Button(
                 onClick = {
                     if (!canConfirm) return@Button
-                    cartViewModel.placeOrder(paymentMethod, if (paymentMethod == "cash") tendered else null)
+                    cartViewModel.placeOrder(paymentMethod, if (paymentMethod == "cash") tendered else null, ageConfirmed)
                 },
                 shape = PillShape,
                 colors = ButtonDefaults.buttonColors(containerColor = JagooGreen),

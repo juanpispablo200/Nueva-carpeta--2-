@@ -68,6 +68,9 @@ import com.jagoo.app.ui.theme.PillShape
 import com.jagoo.app.ui.theme.PoppinsFontFamily
 import com.jagoo.app.viewmodel.CartViewModel
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
@@ -77,6 +80,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+
+/** Respuesta de la RPC get_order_contact (solo los campos que usa el cliente). */
+@Serializable
+private data class OrderContactDto(
+    @SerialName("courier_name")    val courierName: String? = null,
+    @SerialName("courier_vehicle") val courierVehicle: String? = null,
+    @SerialName("courier_plate")   val courierPlate: String? = null
+)
 
 @Composable
 fun OrderTrackingScreen(
@@ -122,16 +133,28 @@ fun OrderTrackingScreen(
                     else                  -> current.statusStep
                 }
 
-                // Leer datos del repartidor si están disponibles en el record
-                val courierName    = update.record["courier_name"]?.toString()?.trim('"')
-                val courierVehicle = update.record["courier_vehicle"]?.toString()?.trim('"')
-                val courierPlate   = update.record["courier_plate"]?.toString()?.trim('"')
-                val courierInfo    = if (!courierName.isNullOrBlank())
-                    com.jagoo.app.data.CourierInfo(
-                        name    = courierName,
-                        vehicle = courierVehicle ?: "",
-                        plate   = courierPlate   ?: ""
-                    ) else current.courier
+                // Datos reales del repartidor: la tabla orders no los guarda, se piden
+                // a get_order_contact (el servidor valida que el pedido sea del cliente).
+                var courierInfo = current.courier
+                val hasCourier = update.record["courier_id"]?.toString()?.trim('"')
+                    ?.let { it.isNotBlank() && it != "null" } == true
+                if (hasCourier && courierInfo == null && newStatus != "cancelled") {
+                    try {
+                        val rows = supabase.postgrest
+                            .rpc("get_order_contact", kotlinx.serialization.json.buildJsonObject {
+                                put("p_order_id", kotlinx.serialization.json.JsonPrimitive(orderId))
+                            })
+                            .decodeList<OrderContactDto>()
+                        val c = rows.firstOrNull()
+                        if (c != null && !c.courierName.isNullOrBlank()) {
+                            courierInfo = com.jagoo.app.data.CourierInfo(
+                                name    = c.courierName,
+                                vehicle = c.courierVehicle.orEmpty(),
+                                plate   = c.courierPlate.orEmpty()
+                            )
+                        }
+                    } catch (_: Exception) {}
+                }
 
                 fun field(name: String) = update.record[name]?.toString()?.trim('"')?.takeIf { it != "null" }
                 liveOrder = current.copy(
@@ -226,7 +249,7 @@ fun OrderTrackingScreen(
                     modifier = Modifier.height(48.dp)
                 ) {
                     Text(
-                        text = "Ver Restaurantes",
+                        text = "Ver negocios",
                         fontFamily = PoppinsFontFamily,
                         fontWeight = FontWeight.Bold,
                         color = JagooGreen

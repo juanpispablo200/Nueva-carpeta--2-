@@ -60,7 +60,7 @@ fun OrderTimeline(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Store,
-                        contentDescription = "Restaurante",
+                        contentDescription = "Negocio",
                         tint = JagooGreen,
                         modifier = Modifier.size(20.dp)
                     )

@@ -49,6 +49,7 @@ import com.jagoo.app.ui.theme.JagooSpacing
 import com.jagoo.app.ui.theme.JagooTextPrimary
 import com.jagoo.app.ui.theme.JagooTextSecondary
 import com.jagoo.app.ui.theme.JagooYellow
+import com.jagoo.app.ui.theme.JagooHeaderBrush
 import com.jagoo.app.ui.theme.PoppinsFontFamily
 
 @Composable
@@ -68,7 +69,7 @@ fun JagooHeader(
         modifier = Modifier
             .fillMaxWidth()
             .clip(HeaderBottomShape)
-            .background(JagooYellow)
+            .background(JagooHeaderBrush)
             .windowInsetsPadding(WindowInsets.statusBars)
             .padding(horizontal = JagooSpacing.md, vertical = 12.dp)
     ) {

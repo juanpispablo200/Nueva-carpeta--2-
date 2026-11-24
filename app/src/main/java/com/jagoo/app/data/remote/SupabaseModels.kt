@@ -86,14 +86,14 @@ data class OrderDto(
     @SerialName("courier_vehicle")    val courierVehicle: String? = null,
     @SerialName("courier_plate")      val courierPlate: String? = null,
     @SerialName("created_at")         val createdAt: String   = "",
-    @SerialName("payment_method")     val paymentMethod: String = "cash",
-    @SerialName("payment_status")     val paymentStatus: String = "pending",
+    @SerialName("payment_method")     val paymentMethod: String? = null,
+    @SerialName("payment_status")     val paymentStatus: String? = null,
     @SerialName("change_due")         val changeDue: Double? = null,
     @SerialName("transfer_deadline")  val transferDeadline: String? = null,
     @SerialName("cancel_reason")      val cancelReason: String? = null,
     @SerialName("age_check_required") val ageCheckRequired: Boolean = false,
     @SerialName("prescription_required") val prescriptionRequired: Boolean = false,
-    @SerialName("prescription_status")   val prescriptionStatus: String = "none"
+    @SerialName("prescription_status")   val prescriptionStatus: String? = null
 )
 
 /** Zona de envío (tabla delivery_zones). */

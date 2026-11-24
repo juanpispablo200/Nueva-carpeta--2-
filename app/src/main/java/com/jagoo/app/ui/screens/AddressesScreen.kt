@@ -57,6 +57,7 @@ import com.jagoo.app.ui.theme.JagooRed
 import com.jagoo.app.ui.theme.JagooTextPrimary
 import com.jagoo.app.ui.theme.JagooTextSecondary
 import com.jagoo.app.ui.theme.JagooYellow
+import com.jagoo.app.ui.theme.JagooHeaderBrush
 import com.jagoo.app.ui.theme.PillShape
 import com.jagoo.app.ui.theme.PoppinsFontFamily
 import com.jagoo.app.viewmodel.ProductViewModel
@@ -78,7 +79,7 @@ fun AddressesScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(JagooYellow)
+                .background(JagooHeaderBrush)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

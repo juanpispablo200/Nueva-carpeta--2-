@@ -30,3 +30,8 @@ val JagooSuccess = Color(0xFF2E7D32)
 val JagooWarning = Color(0xFFF9A825)
 val JagooSuccessSurface = Color(0xFFE8F5E9)
 val JagooWarningSurface = Color(0xFFFFF8E1)
+
+/** Degradado cálido de los encabezados: más profundidad que un amarillo plano. */
+val JagooHeaderBrush: androidx.compose.ui.graphics.Brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+    listOf(Color(0xFFFFE566), JagooYellow, Color(0xFFFFC107))
+)
