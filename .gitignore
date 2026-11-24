@@ -1,7 +1,8 @@
-# ── Android ───────────────────────────────────────────────────────────────────
+# --- Android / Gradle ---
 *.iml
 .gradle/
 .idea/
+.kotlin/
 .DS_Store
 build/
 captures/
@@ -10,24 +11,50 @@ captures/
 *.apk
 *.aab
 *.ap_
+*.hprof
+hs_err_pid*
 
-# ── Secretos — NUNCA subir al repo ────────────────────────────────────────────
+# --- Secretos: NUNCA subir al repo ---
 local.properties
 keystore.properties
 keystore.driver.properties
 *.jks
 *.keystore
+*.p12
+*.pem
 google-services.json
+service-account*.json
+*firebase-adminsdk*.json
+.env
+.env.*
+!.env.example
 
-# ── Web ───────────────────────────────────────────────────────────────────────
+# --- Web ---
 web/node_modules/
 web/dist/
 web/.env
+web/.env.*
+!web/.env.example
+*.tsbuildinfo
 
-# ── Supabase ──────────────────────────────────────────────────────────────────
+# --- Supabase ---
 supabase/.env
+supabase/.env.*
+supabase/.temp/
+supabase/.branches/
 supabase/functions/**/.env
+supabase/tests/security/node_modules/
 
-# ── Sistema ───────────────────────────────────────────────────────────────────
+# --- Herramientas de diagnostico/administracion (no van al repo ni al build) ---
+web/public/create-admin.html
+web/public/reset-database.html
+web/public/fix-admin.html
+web/public/fix-courier-permissions.html
+web/public/diagnostic.html
+web/public/check-migration.html
+web/public/simple-test.html
+web/public/test-supabase.html
+
+# --- Sistema ---
 Thumbs.db
 *.log
