@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
-import { UtensilsCrossed, BookOpen, Bell } from 'lucide-react'
+import { UtensilsCrossed, BookOpen, Tag } from 'lucide-react'
 import { supabase, getMyProfile, type Profile } from '../../lib/supabase'
 import type { Restaurant, Order } from '../../lib/types'
 import { useOrders }   from '../../hooks/useOrders'
 import OrderCard       from '../../components/restaurant/OrderCard'
 import { useLocation } from 'react-router-dom'
 import MenuEditor      from '../../components/restaurant/MenuEditor'
+import PromotionsEditor from '../../components/restaurant/PromotionsEditor'
 import { EmptyState } from '../../components/ui'
 import AppLayout from '../../components/layout/AppLayout'
 
-type Tab = 'pedidos' | 'menu'
+type Tab = 'pedidos' | 'menu' | 'promos'
 
 // Columnas Kanban
 const COLUMNS: { status: Order['status'][]; label: string; color: string }[] = [
@@ -94,6 +95,16 @@ export default function RestaurantHomePage() {
           <BookOpen size={16}/>
           Menú
         </button>
+        <button onClick={() => setTab('promos')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium transition-all ${
+            tab === 'promos'
+              ? 'bg-[var(--color-brand-700)] text-white'
+              : 'bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] border border-[var(--color-border)]'
+          }`}
+        >
+          <Tag size={16}/>
+          Promociones
+        </button>
       </div>
 
       {/* Estado abierto/cerrado */}
@@ -154,6 +165,14 @@ export default function RestaurantHomePage() {
             })}
           </div>
         )
+      ) : tab === 'promos' ? (
+        <div className="max-w-3xl">
+          {restaurant ? (
+            <PromotionsEditor restaurantId={restaurant.id} />
+          ) : (
+            <p className="text-sm text-[var(--color-ink-muted)]">Tu cuenta aún no está vinculada a un negocio.</p>
+          )}
+        </div>
       ) : (
         <div className="max-w-3xl">
           {restaurant ? (
