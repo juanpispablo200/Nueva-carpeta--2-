@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.jagoo.driver.data.remote.DriverOrderDto
+import com.jagoo.driver.data.remote.DriverOrderItemDto
 import com.jagoo.driver.data.remote.SupabaseClient
 import com.jagoo.driver.location.DriverLocationService
 import com.jagoo.driver.notifications.DriverNotificationManager
@@ -34,11 +35,19 @@ data class DriverEarningsDto(
     val period: String                                           = "all"
 )
 
+@Serializable
+private data class OrderContactRow(
+    @SerialName("restaurant_phone") val restaurantPhone: String? = null,
+    @SerialName("customer_name")    val customerName: String?    = null,
+    @SerialName("customer_phone")   val customerPhone: String?   = null
+)
+
 class DriverRepartidorViewModel(application: Application) : AndroidViewModel(application) {
 
     private val supabase = SupabaseClient.client
     private val auth     = supabase.auth
     private var realtimeChannel: RealtimeChannel? = null
+    private var primeraCarga = true
 
     private val _isAvailable = MutableStateFlow(false)
     val isAvailable: StateFlow<Boolean> = _isAvailable.asStateFlow()
@@ -65,6 +74,21 @@ class DriverRepartidorViewModel(application: Application) : AndroidViewModel(app
         cargarEstadoInicial()
         cargarPedidos()
         suscribirRealtime()
+        refrescoPeriodico()
+    }
+
+    /**
+     * El realtime ya no avisa de pedidos libres (la RLS no se los muestra al
+     * repartidor), así que mientras esté disponible se refresca la lista cada 30 s.
+     * Además llega el push de notify-repartidores.
+     */
+    private fun refrescoPeriodico() {
+        viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(30_000L)
+                if (_isAvailable.value) cargarPedidos()
+            }
+        }
     }
 
     private fun cargarEstadoInicial() {
@@ -87,18 +111,8 @@ class DriverRepartidorViewModel(application: Application) : AndroidViewModel(app
                     table = "orders"
                 }
                 realtimeChannel?.subscribe()
-                flow?.collect { action ->
-                    cargarPedidos()
-                    if (action is PostgresAction.Insert || action is PostgresAction.Update) {
-                        if (_isAvailable.value) {
-                            DriverNotificationManager.showNewOrderNotification(
-                                getApplication(),
-                                "🚴 ¡Nuevo Pedido Disponible!",
-                                "Hay una nueva entrega lista en Jagoo Driver"
-                            )
-                        }
-                    }
-                }
+                // Solo llegan cambios de pedidos propios (RLS); sirve para refrescar la lista
+                flow?.collect { cargarPedidos() }
             } catch (_: Exception) {}
         }
     }
@@ -123,16 +137,24 @@ class DriverRepartidorViewModel(application: Application) : AndroidViewModel(app
             _loading.value = true
             val userId = auth.currentUserOrNull()?.id
             try {
-                // 1. Pedidos en ready sin courier_id
-                val disponibles = supabase.from("orders")
-                    .select { filter {
-                        eq("status", "ready")
-                        filter("courier_id", FilterOperator.IS, "null")
-                    }}
-                    .decodeList<DriverOrderDto>()
-                _pedidosDisponibles.value = disponibles
+                // 1. Pedidos libres: la RLS ya no deja leer la tabla orders para ellos.
+                //    list_available_orders devuelve solo datos mínimos (sin dirección ni total)
+                //    y solo a repartidores activos y disponibles.
+                val nuevos = try {
+                    supabase.postgrest.rpc("list_available_orders").decodeList<DriverOrderDto>()
+                } catch (e: Exception) { emptyList() }
+                val vistos = _pedidosDisponibles.value.map { it.id }.toSet()
+                if (_isAvailable.value && nuevos.any { it.id !in vistos } && !primeraCarga) {
+                    DriverNotificationManager.showNewOrderNotification(
+                        getApplication(),
+                        "🚴 ¡Nuevo Pedido Disponible!",
+                        "Hay una nueva entrega lista en Jagoo Driver"
+                    )
+                }
+                primeraCarga = false
+                _pedidosDisponibles.value = nuevos
 
-                // 2. Mis pedidos en curso
+                // 2. Mis pedidos en curso (con contacto real e ítems)
                 if (userId != null) {
                     val mios = supabase.from("orders")
                         .select { filter {
@@ -141,6 +163,7 @@ class DriverRepartidorViewModel(application: Application) : AndroidViewModel(app
                             neq("status", "cancelled")
                         }}
                         .decodeList<DriverOrderDto>()
+                        .map { enriquecer(it) }
                     _misPedidos.value = mios
 
                     // 3. Historial de entregas completadas
@@ -158,6 +181,32 @@ class DriverRepartidorViewModel(application: Application) : AndroidViewModel(app
                 _loading.value = false
             }
         }
+    }
+
+    /**
+     * Completa un pedido propio con el contacto real (get_order_contact) y sus
+     * ítems (order_items). Si algo falla se deja en null: nunca se inventan datos.
+     */
+    private suspend fun enriquecer(p: DriverOrderDto): DriverOrderDto {
+        var out = p
+        try {
+            val c = supabase.postgrest
+                .rpc("get_order_contact", buildJsonObject { put("p_order_id", p.id) })
+                .decodeList<OrderContactRow>()
+                .firstOrNull()
+            if (c != null) out = out.copy(
+                restaurantPhone = c.restaurantPhone,
+                customerName    = c.customerName,
+                customerPhone   = c.customerPhone
+            )
+        } catch (_: Exception) {}
+        try {
+            val items = supabase.from("order_items")
+                .select { filter { eq("order_id", p.id) } }
+                .decodeList<DriverOrderItemDto>()
+            out = out.copy(items = items)
+        } catch (_: Exception) {}
+        return out
     }
 
     fun aceptarPedido(orderId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {

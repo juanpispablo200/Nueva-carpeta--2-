@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jagoo.driver.data.remote.DriverOrderDto
+import com.jagoo.driver.util.PhoneRules
 import com.jagoo.driver.ui.theme.*
 import com.jagoo.driver.viewmodel.DriverRepartidorViewModel
 import kotlinx.coroutines.delay
@@ -115,7 +116,7 @@ fun DriverRepartidorScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(HeaderBottomShape)
-                .background(JagooYellow)
+                .background(JagooHeaderBrush)
                 .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
             Row(
@@ -232,11 +233,12 @@ private fun NuevaOfertaModal(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Restaurante: ${pedido.restaurantName}", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                pedido.deliveryAddress?.let {
-                    Text("Destino: $it", fontFamily = PoppinsFontFamily, fontSize = 13.sp, color = JagooTextSecondary)
+                Text("Negocio: ${pedido.restaurantName}", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                pedido.zoneName?.let {
+                    Text("Zona: $it", fontFamily = PoppinsFontFamily, fontSize = 13.sp, color = JagooTextSecondary)
                 }
-                Text("Ganancia estimada: $1,50", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = JagooGreen)
+                Text(gananciaTexto(pedido), fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = JagooGreen)
+                Text("La direcci?n se muestra al aceptar el pedido.", fontFamily = PoppinsFontFamily, fontSize = 11.sp, color = JagooTextSecondary)
                 Spacer(Modifier.height(4.dp))
                 LinearProgressIndicator(
                     progress = { timeLeft / 30f },
@@ -280,7 +282,7 @@ private fun DriverPedidoCard(pedido: DriverOrderDto, isMyOrder: Boolean, onClick
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(pedido.restaurantName, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = JagooTextPrimary)
-                pedido.deliveryAddress?.let {
+                (if (isMyOrder) pedido.deliveryAddress else pedido.zoneName?.let { "Zona: $it" })?.let {
                     Spacer(Modifier.height(2.dp))
                     Text(it, fontFamily = PoppinsFontFamily, fontSize = 11.sp, color = JagooTextSecondary, maxLines = 1)
                 }
@@ -299,7 +301,10 @@ private fun DriverPedidoCard(pedido: DriverOrderDto, isMyOrder: Boolean, onClick
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("$${String.format("%.2f", pedido.total).replace('.', ',')}", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = JagooGreen)
+                Text(
+                    if (isMyOrder) "$${String.format("%.2f", pedido.total).replace('.', ',')}" else gananciaTexto(pedido),
+                    fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = JagooGreen
+                )
                 Spacer(Modifier.height(4.dp))
                 Icon(Icons.Default.ChevronRight, null, tint = Color.Gray, modifier = Modifier.size(18.dp))
             }
@@ -334,9 +339,9 @@ private fun DriverDetalleScreen(
     }
 
     fun llamarTelefono(numero: String) {
+        val dial = PhoneRules.dialable(numero) ?: return   // nunca se marca un n?mero falso
         try {
-            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${numero.replace(" ", "")}"))
-            context.startActivity(intent)
+            context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$dial")))
         } catch (_: Exception) {}
     }
 
@@ -362,8 +367,8 @@ private fun DriverDetalleScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            InfoRow(Icons.Default.Restaurant, "Restaurante", pedido.restaurantName)
-                            pedido.restaurantPhone?.let { phone ->
+                            InfoRow(Icons.Default.Restaurant, "Negocio", pedido.restaurantName)
+                            PhoneRules.dialable(pedido.restaurantPhone)?.let { phone ->
                                 IconButton(onClick = { llamarTelefono(phone) }, modifier = Modifier.size(48.dp).clip(CircleShape).background(JagooYellow.copy(alpha = 0.4f))) {
                                     Icon(Icons.Default.Phone, "Llamar restaurante", tint = JagooGreen, modifier = Modifier.size(18.dp))
                                 }
@@ -373,8 +378,8 @@ private fun DriverDetalleScreen(
                         HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f))
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            InfoRow(Icons.Default.Person, "Cliente", pedido.customerName ?: "Cliente Jagoo")
-                            pedido.customerPhone?.let { phone ->
+                            if (isMyOrder) InfoRow(Icons.Default.Person, "Cliente", pedido.customerName?.takeIf { it.isNotBlank() } ?: "Cliente (sin nombre registrado)")
+                            PhoneRules.dialable(pedido.customerPhone)?.takeIf { isMyOrder }?.let { phone ->
                                 IconButton(onClick = { llamarTelefono(phone) }, modifier = Modifier.size(48.dp).clip(CircleShape).background(JagooYellow.copy(alpha = 0.4f))) {
                                     Icon(Icons.Default.Phone, "Llamar cliente", tint = JagooGreen, modifier = Modifier.size(18.dp))
                                 }
@@ -402,8 +407,16 @@ private fun DriverDetalleScreen(
 
                         HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f))
 
-                        InfoRow(Icons.Default.AttachMoney, "Total", "$${String.format("%.2f", pedido.total).replace('.', ',')}")
+                        if (isMyOrder) InfoRow(Icons.Default.AttachMoney, "Total", "$${String.format("%.2f", pedido.total).replace('.', ',')}")
+                        else InfoRow(Icons.Default.AttachMoney, "Ganancia", gananciaTexto(pedido).removePrefix("Ganas "))
                         InfoRow(Icons.Default.Info, "Estado", statusLabel(pedido.status))
+                        if (pedido.items.isNotEmpty()) {
+                            HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f))
+                            Text("Productos", fontFamily = PoppinsFontFamily, fontSize = 10.sp, color = JagooTextSecondary)
+                            pedido.items.forEach { it2 ->
+                                Text("${it2.quantity} x ${it2.dishName}", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = JagooTextPrimary)
+                            }
+                        }
                     }
                 }
             }
@@ -487,6 +500,9 @@ private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label
         }
     }
 }
+
+private fun gananciaTexto(p: DriverOrderDto): String =
+    p.driverAmount?.let { "Ganas $" + String.format("%.2f", it).replace('.', ',') } ?: "Ganancia por definir"
 
 private fun statusLabel(status: String) = when (status) {
     "pending"    -> "Pendiente"

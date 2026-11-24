@@ -25,9 +25,13 @@ data class DriverOrderItemDto(
 data class DriverOrderDto(
     val id: String                                            = "",
     @SerialName("restaurant_name") val restaurantName: String = "",
-    @SerialName("restaurant_phone") val restaurantPhone: String? = "+593 99 111 2222",
-    @SerialName("customer_name") val customerName: String?     = "Cliente Jagoo",
-    @SerialName("customer_phone") val customerPhone: String?   = "+593 99 999 8888",
+    // Contacto: no existe en la tabla orders; lo completa get_order_contact. Sin valores falsos.
+    @SerialName("restaurant_phone") val restaurantPhone: String? = null,
+    @SerialName("customer_name") val customerName: String?     = null,
+    @SerialName("customer_phone") val customerPhone: String?   = null,
+    // Lista de pedidos libres (list_available_orders): sin dirección ni total
+    @SerialName("driver_amount") val driverAmount: Double?     = null,
+    @SerialName("delivery_zone_name") val zoneName: String?    = null,
     @SerialName("delivery_address") val deliveryAddress: String? = null,
     val total: Double                                         = 0.0,
     val status: String                                        = "ready",

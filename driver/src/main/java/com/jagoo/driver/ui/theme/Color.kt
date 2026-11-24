@@ -23,3 +23,8 @@ val JagooTextMuted = Color(0xFF888888)
 
 val HeaderBottomShape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)
 val PillShape = CircleShape
+
+/** Degradado cálido de los encabezados: más profundidad que un amarillo plano. */
+val JagooHeaderBrush: androidx.compose.ui.graphics.Brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+    listOf(Color(0xFFFFE566), JagooYellow, Color(0xFFFFC107))
+)

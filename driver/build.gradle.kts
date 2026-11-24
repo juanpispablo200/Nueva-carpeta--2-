@@ -141,6 +141,7 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
     implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.analytics)
 
     // Google Maps — para ver posición del repartidor
     implementation(libs.maps.compose)
@@ -154,4 +155,5 @@ dependencies {
     implementation(libs.kotlin.serialization.json)
 
     debugImplementation(libs.androidx.ui.tooling)
+    testImplementation("junit:junit:4.13.2")
 }

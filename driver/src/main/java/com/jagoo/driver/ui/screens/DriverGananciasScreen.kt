@@ -54,7 +54,7 @@ fun DriverGananciasScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(JagooYellow)
+                .background(JagooHeaderBrush)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
