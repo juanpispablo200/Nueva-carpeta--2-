@@ -309,7 +309,7 @@ fun OrderTrackingScreen(
                                 text = "Pedido ${com.jagoo.app.data.orderNumber(order.id)} · ${order.items.size} productos",
                                 fontFamily = PoppinsFontFamily,
                                 fontSize = 12.sp,
-                                color = Color.Gray
+                                color = Color(0xFF5A5A5A)
                             )
                         }
                     }

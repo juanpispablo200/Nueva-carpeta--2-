@@ -97,10 +97,10 @@ fun CourierCard(
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(JagooYellow)
-                    .clickable { onCallClick() }
+                    .clickable(role = androidx.compose.ui.semantics.Role.Button, onClickLabel = "Llamar al repartidor") { onCallClick() }
             ) {
                 Icon(
                     imageVector = Icons.Default.Call,

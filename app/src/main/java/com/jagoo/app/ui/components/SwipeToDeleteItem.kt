@@ -100,6 +100,8 @@ fun SwipeToDeleteItem(
                 .background(JagooRed)
                 .clickable(
                     enabled = isOpen,
+                    role = androidx.compose.ui.semantics.Role.Button,
+                    onClickLabel = "Eliminar",
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() }
                 ) { onDelete() }

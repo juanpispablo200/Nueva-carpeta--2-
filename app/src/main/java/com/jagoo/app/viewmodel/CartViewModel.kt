@@ -145,6 +145,7 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Carga zonas, tarifa por defecto y pedido mínimo al entrar al checkout. */
     fun loadCheckoutConfig() {
+        refreshPromo()
         viewModelScope.launch {
             _configLoading.value = true
             val supabase = SupabaseClient.client
@@ -200,9 +201,63 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
 
     fun getSubtotal() = _cartItems.value.sumOf { it.totalPrice }
 
+    // ── Promoción vigente del negocio (la aplica el servidor; aquí solo se muestra) ──
+    private val _promo = MutableStateFlow<com.jagoo.app.data.remote.RestaurantPromoDto?>(null)
+    val promo: StateFlow<com.jagoo.app.data.remote.RestaurantPromoDto?> = _promo.asStateFlow()
+
+    /** Mismo cálculo que create_order: porcentaje sobre el subtotal, redondeado a centavos. */
+    fun promoDiscount(): Double {
+        val pct = _promo.value?.discountPercent ?: return 0.0
+        return Math.round(getSubtotal() * pct) / 100.0
+    }
+
+    /** Consulta la promoción vigente del negocio del carrito. Sin red o sin promoción: ninguna. */
+    fun refreshPromo() {
+        val restId = currentRestaurantId
+        if (restId == null) { _promo.value = null; return }
+        viewModelScope.launch {
+            _promo.value = try {
+                withTimeout(10_000L) {
+                    SupabaseClient.client.postgrest
+                        .rpc("get_restaurant_promo", buildJsonObject { put("p_restaurant_id", restId) })
+                        .decodeList<com.jagoo.app.data.remote.RestaurantPromoDto>()
+                        .firstOrNull()
+                }
+            } catch (_: Exception) { null }
+        }
+    }
+
+    // ── Pedido alternativo por WhatsApp ───────────────────────────────────────
+    /**
+     * Pide al servidor el número del negocio (null para licorerías, farmacias o si no tiene
+     * un móvil válido) y devuelve el enlace wa.me con el carrito prellenado.
+     */
+    fun requestWhatsAppUrl(address: String?, onResult: (url: String?) -> Unit) {
+        val restId = currentRestaurantId
+        val name = currentRestaurantName
+        val items = _cartItems.value
+        if (restId == null || name == null || items.isEmpty()) { onResult(null); return }
+        viewModelScope.launch {
+            val url = try {
+                val phone = withTimeout(10_000L) {
+                    SupabaseClient.client.postgrest
+                        .rpc("get_restaurant_whatsapp", buildJsonObject { put("p_restaurant_id", restId) })
+                        .data.trim().removeSurrounding("\"").takeIf { it.isNotBlank() && it != "null" }
+                }
+                phone?.let {
+                    com.jagoo.app.data.WhatsAppOrder.buildUrl(
+                        it,
+                        com.jagoo.app.data.WhatsAppOrder.buildMessage(name, items, _promo.value?.discountPercent ?: 0, address)
+                    )
+                }
+            } catch (_: Exception) { null }
+            onResult(url)
+        }
+    }
+
     fun getTotal(): Double {
         val discount = _couponDiscount.value
-        return (getSubtotal() + deliveryFee - discount).coerceAtLeast(0.0)
+        return (getSubtotal() - promoDiscount() + deliveryFee - discount).coerceAtLeast(0.0)
     }
 
     fun getItemQuantity(dishId: String) =
@@ -376,7 +431,7 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
         _cartItems.update { it.filter { item -> item.dish.id != dishId } }
     }
 
-    fun clearCart() { _cartItems.value = emptyList() }
+    fun clearCart() { _cartItems.value = emptyList(); _promo.value = null }
 
     // ── Cupón — validación real contra Supabase ───────────────────────────────
     fun setCouponCode(code: String) {
@@ -395,7 +450,7 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
                 val results = supabase.postgrest
                     .rpc("check_coupon", buildJsonObject {
                         put("p_code", code)
-                        put("p_order_total", getSubtotal() + deliveryFee)
+                        put("p_order_total", getSubtotal() - promoDiscount() + deliveryFee)
                     })
                     .decodeList<CouponValidation>()
 

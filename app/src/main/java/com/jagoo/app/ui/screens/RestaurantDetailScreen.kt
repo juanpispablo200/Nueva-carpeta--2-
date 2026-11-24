@@ -179,7 +179,7 @@ fun RestaurantDetailScreen(
                     Icon(
                         imageVector = if (isFav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = "Favorito",
-                        tint = if (isFav) JagooRed else Color.Gray,
+                        tint = if (isFav) JagooRed else Color(0xFF5A5A5A),
                         modifier = Modifier.size(20.dp)
                     )
                 }

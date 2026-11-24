@@ -106,6 +106,8 @@ fun CheckoutScreen(
     val couponError    by cartViewModel.couponError.collectAsState()
     val couponLoading  by cartViewModel.couponLoading.collectAsState()
 
+    val promoState by cartViewModel.promo.collectAsState()
+    val promoDiscount = cartViewModel.promoDiscount()
     val total = cartViewModel.getTotal()
 
     val addresses      by productViewModel.addresses.collectAsState()
@@ -600,6 +602,22 @@ fun CheckoutScreen(
                         )
                     }
 
+                    if (promoDiscount > 0) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("PromociÃ³n (-${promoState?.discountPercent}%)", fontSize = 13.sp, color = JagooGreen)
+                            Text(
+                                "-$${String.format("%.2f", promoDiscount)}",
+                                fontFamily = PoppinsFontFamily,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = JagooGreen
+                            )
+                        }
+                    }
                     if (couponApplied && couponDiscount > 0) {
                         Spacer(modifier = Modifier.height(6.dp))
                         Row(

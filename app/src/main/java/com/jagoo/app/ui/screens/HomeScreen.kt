@@ -62,8 +62,9 @@ fun HomeScreen(
     val loadError by productViewModel.loadError.collectAsState()
     val isLoading by productViewModel.isLoading.collectAsState()
 
-    val primaryAddress = addresses.find { it.isPrimary }?.fullAddress ?: "Av. República del Salvador, Quito"
+    val primaryAddress = addresses.find { it.isPrimary }?.fullAddress ?: "Agrega tu dirección de entrega"
     val offerRestaurants = restaurants.filter { it.isOffer }
+    val promotions by productViewModel.promotions.collectAsState()
 
     Column(
         modifier = Modifier
@@ -129,12 +130,13 @@ fun HomeScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(vertical = 12.dp)
         ) {
-            // Banner promocional
-            Box(modifier = Modifier.padding(horizontal = JagooSpacing.md)) {
-                PromoBanner()
+            // Banner promocional: solo si hay promociones reales vigentes
+            if (promotions.isNotEmpty()) {
+                Box(modifier = Modifier.padding(horizontal = JagooSpacing.md)) {
+                    PromoBanner(promotions = promotions, onClick = onNavigateToRestaurant)
+                }
+                Spacer(modifier = Modifier.height(18.dp))
             }
-
-            Spacer(modifier = Modifier.height(18.dp))
 
             // Tipos de negocio: restaurantes, tiendas, farmacias, licorerías
             Text(

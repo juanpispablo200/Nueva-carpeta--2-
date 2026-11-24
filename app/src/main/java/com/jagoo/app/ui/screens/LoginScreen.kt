@@ -1536,6 +1536,8 @@ import androidx.compose.ui.draw.shadow
 import com.jagoo.app.ui.theme.JagooHeaderBrush
 import com.jagoo.app.ui.theme.HeaderBottomShape
 import com.jagoo.app.ui.theme.JagooHeaderBrush
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.jagoo.app.ui.theme.JagooHeaderBrush
 import com.jagoo.app.ui.theme.HeaderBottomShape
@@ -2094,7 +2096,7 @@ fun LoginScreen(
                     color = Color(0xFFD32F2F),
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Assertive }
                 )
                 Spacer(modifier = Modifier.height(JagooSpacing.sm))
             }

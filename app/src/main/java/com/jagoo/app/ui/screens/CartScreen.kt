@@ -56,6 +56,13 @@ import com.jagoo.app.ui.theme.JagooYellow
 import com.jagoo.app.ui.theme.PillShape
 import com.jagoo.app.ui.theme.PoppinsFontFamily
 import com.jagoo.app.viewmodel.CartViewModel
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun CartScreen(
@@ -65,9 +72,15 @@ fun CartScreen(
     val cartItems by cartViewModel.cartItems.collectAsState()
 
     val restaurantName = cartViewModel.currentRestaurantName ?: "Negocio"
+    val promo by cartViewModel.promo.collectAsState()
     val subtotal = cartViewModel.getSubtotal()
+    val promoDiscount = cartViewModel.promoDiscount()
     val total = cartViewModel.getTotal()
     val deliveryFee = cartViewModel.deliveryFee
+    val context = LocalContext.current
+    var whatsappBusy by remember { mutableStateOf(false) }
+    var whatsappMessage by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(cartItems) { cartViewModel.refreshPromo() }
 
     Column(
         modifier = Modifier
@@ -207,6 +220,27 @@ fun CartScreen(
                             )
                         }
 
+                        if (promo != null && promoDiscount > 0) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "PromociÃ³n (-${promo?.discountPercent}%)",
+                                    fontFamily = PoppinsFontFamily,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 14.sp,
+                                    color = JagooGreen
+                                )
+                                Text(
+                                    text = "-$${String.format("%.2f", promoDiscount).replace('.', ',')}",
+                                    fontFamily = PoppinsFontFamily,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                    color = JagooGreen
+                                )
+                            }
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -278,6 +312,57 @@ fun CartScreen(
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     color = if (cartItems.isEmpty()) JagooTextMuted else JagooGreen
+                )
+            }
+            if (cartItems.isNotEmpty()) {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        if (whatsappBusy) return@TextButton
+                        whatsappBusy = true
+                        cartViewModel.requestWhatsAppUrl(null) { url ->
+                            whatsappBusy = false
+                            if (url == null) {
+                                whatsappMessage = "Este negocio no recibe pedidos por WhatsApp. Haz tu pedido desde la app."
+                            } else {
+                                try {
+                                    context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+                                } catch (_: Exception) {
+                                    whatsappMessage = "No se pudo abrir WhatsApp. Â¿Lo tienes instalado?"
+                                }
+                            }
+                        }
+                    },
+                    enabled = !whatsappBusy,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                ) {
+                    Text(
+                        text = if (whatsappBusy) "Abriendo WhatsAppâ€¦" else "Pedir por WhatsApp",
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        color = JagooGreen
+                    )
+                }
+                Text(
+                    text = "Por WhatsApp el pedido no tiene seguimiento ni pago en la app.",
+                    fontFamily = PoppinsFontFamily,
+                    fontSize = 11.sp,
+                    color = JagooTextMuted,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            whatsappMessage?.let { msg ->
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { whatsappMessage = null },
+                    title = { Text("WhatsApp", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold) },
+                    text = { Text(msg, fontFamily = PoppinsFontFamily) },
+                    confirmButton = {
+                        androidx.compose.material3.TextButton(onClick = { whatsappMessage = null }) {
+                            Text("Entendido", color = JagooGreen)
+                        }
+                    }
                 )
             }
         }

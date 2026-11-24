@@ -19,7 +19,7 @@ val JagooRed = Color(0xFFD32F2F)
 val JagooTextPrimary = Color(0xFF1C211E)
 val JagooTextSecondary = Color(0xFF666666)
 val JagooTextGreen = Color(0xFF0B5D2E)
-val JagooTextMuted = Color(0xFF888888)
+val JagooTextMuted = Color(0xFF5A5A5A)
 
 val JagooDivider = Color(0xFFE5E5E5)
 val JagooSearchBackground = Color(0xFFFFFFFF)

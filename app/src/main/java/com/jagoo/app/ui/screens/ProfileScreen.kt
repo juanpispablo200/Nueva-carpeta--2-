@@ -404,7 +404,7 @@ private fun ProfileMenuItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .clickable(role = androidx.compose.ui.semantics.Role.Button) { onClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -425,6 +425,6 @@ private fun ProfileMenuItem(
                 Text(text = subtitle, fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = JagooTextSecondary)
             }
         }
-        Icon(imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+        Icon(imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color(0xFF5A5A5A), modifier = Modifier.size(20.dp))
     }
 }

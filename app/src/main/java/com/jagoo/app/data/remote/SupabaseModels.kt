@@ -140,3 +140,25 @@ data class SelectedOptionDto(
     val optionName: String       = "",
     val optionPrice: Double      = 0.0
 )
+
+/** Fila de list_active_promotions(): promoción vigente con datos del negocio. */
+@Serializable
+data class PromotionDto(
+    val id: String                                            = "",
+    @SerialName("restaurant_id")   val restaurantId: String  = "",
+    @SerialName("restaurant_name") val restaurantName: String = "",
+    @SerialName("business_type")   val businessType: String  = "restaurante",
+    @SerialName("logo_url")        val logoUrl: String?      = null,
+    @SerialName("cover_url")       val coverUrl: String?     = null,
+    val title: String                                         = "",
+    @SerialName("discount_percent") val discountPercent: Int = 0,
+    @SerialName("ends_at")         val endsAt: String        = ""
+)
+
+/** Respuesta de get_restaurant_promo(): promoción vigente de un negocio (porcentaje que aplica el servidor). */
+@Serializable
+data class RestaurantPromoDto(
+    val title: String                                         = "",
+    @SerialName("discount_percent") val discountPercent: Int = 0,
+    @SerialName("ends_at")         val endsAt: String        = ""
+)

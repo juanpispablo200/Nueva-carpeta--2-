@@ -3,6 +3,9 @@ package com.jagoo.app.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -83,7 +86,9 @@ fun JagooBottomBar(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .clip(CircleShape)
-                        .clickable { onNavigate(item.route) }
+                        .heightIn(min = 48.dp)
+                        .clickable(role = androidx.compose.ui.semantics.Role.Tab) { onNavigate(item.route) }
+                        .semantics(mergeDescendants = true) { selected = isSelected }
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Box(
@@ -95,8 +100,8 @@ fun JagooBottomBar(
                     ) {
                         Icon(
                             imageVector = item.icon,
-                            contentDescription = item.title,
-                            tint = if (isSelected) Color.White else Color.Gray,
+                            contentDescription = null,   // el texto de abajo ya nombra la pestaña
+                            tint = if (isSelected) Color.White else Color(0xFF5A5A5A),
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -106,7 +111,7 @@ fun JagooBottomBar(
                         fontFamily = PoppinsFontFamily,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         fontSize = 10.sp,
-                        color = if (isSelected) JagooGreen else Color.Gray
+                        color = if (isSelected) JagooGreen else Color(0xFF5A5A5A)
                     )
                 }
             }

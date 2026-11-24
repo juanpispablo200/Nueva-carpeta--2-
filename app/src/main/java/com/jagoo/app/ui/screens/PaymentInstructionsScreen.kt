@@ -331,7 +331,7 @@ fun PaymentInstructionsScreen(
                         onClick = { imagePickerLauncher.launch("image/*") },
                         shape = PillShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (selectedImageUri == null) JagooYellow else Color.Gray
+                            containerColor = if (selectedImageUri == null) JagooYellow else Color(0xFF5A5A5A)
                         ),
                         modifier = Modifier
                             .fillMaxWidth()

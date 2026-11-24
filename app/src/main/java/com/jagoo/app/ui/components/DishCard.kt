@@ -81,7 +81,7 @@ fun DishCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onClickDish() }
+            .clickable(role = androidx.compose.ui.semantics.Role.Button) { onClickDish() }
     ) {
         Row(
             modifier = Modifier

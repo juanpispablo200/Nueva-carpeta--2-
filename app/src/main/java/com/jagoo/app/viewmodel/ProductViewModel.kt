@@ -77,6 +77,10 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    // Promociones vigentes de los negocios (banner del home). Vacío = no se muestra banner.
+    private val _promotions = MutableStateFlow<List<com.jagoo.app.data.remote.PromotionDto>>(emptyList())
+    val promotions: StateFlow<List<com.jagoo.app.data.remote.PromotionDto>> = _promotions.asStateFlow()
+
     private val _addresses = MutableStateFlow<List<AddressItem>>(localRepo.getAddresses())
     val addresses: StateFlow<List<AddressItem>> = _addresses.asStateFlow()
 
@@ -85,6 +89,7 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
         loadRestaurantsFromSupabase()
         loadAddressesFromSupabase()
         loadFavoritesFromSupabase()
+        loadPromotions()
         setupSearchDebounce()
     }
 
@@ -140,6 +145,7 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
         loadRestaurantsFromSupabase()
         loadAddressesFromSupabase()
         loadFavoritesFromSupabase()
+        loadPromotions()
     }
 
     fun clearError() { _loadError.value = null }
@@ -154,6 +160,22 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
     fun refreshData() {
         loadRestaurantsFromSupabase()
         loadAddressesFromSupabase()
+        loadPromotions()
+    }
+
+    /** Promociones reales y vigentes (list_active_promotions). Si falla, no se muestra banner. */
+    fun loadPromotions() {
+        viewModelScope.launch {
+            try {
+                _promotions.value = kotlinx.coroutines.withTimeout(10_000L) {
+                    SupabaseClient.client.postgrest
+                        .rpc("list_active_promotions")
+                        .decodeList<com.jagoo.app.data.remote.PromotionDto>()
+                }
+            } catch (_: Exception) {
+                _promotions.value = emptyList()
+            }
+        }
     }
 
     // ── Filtros y búsqueda ────────────────────────────────────────────────────

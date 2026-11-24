@@ -162,7 +162,7 @@ fun AddressesScreen(
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { productViewModel.setPrimaryAddress(addr.id) }
+                            .clickable(role = androidx.compose.ui.semantics.Role.RadioButton, onClickLabel = "Usar como dirección principal") { productViewModel.setPrimaryAddress(addr.id) }
                     ) {
                         Row(
                             modifier = Modifier
@@ -289,7 +289,7 @@ private fun AddAddressModal(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Cancelar", color = Color.Gray)
+                        Text("Cancelar", color = Color(0xFF5A5A5A))
                     }
 
                     Spacer(modifier = Modifier.width(8.dp))

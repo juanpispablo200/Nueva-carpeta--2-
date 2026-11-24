@@ -74,7 +74,7 @@ fun RestaurantCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .clickable(role = androidx.compose.ui.semantics.Role.Button) { onClick() }
     ) {
         Column(
             modifier = Modifier.fillMaxWidth()
@@ -103,17 +103,23 @@ fun RestaurantCard(
                     onClick = onFavoriteToggle,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.85f))
+                        .padding(2.dp)
+                        .size(48.dp)
                 ) {
-                    Icon(
-                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "Favorito",
-                        tint = if (isFavorite) JagooRed else Color.Gray,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.85f))
+                    ) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = if (isFavorite) "Quitar de favoritos" else "Agregar a favoritos",
+                            tint = if (isFavorite) JagooRed else Color(0xFF5A5A5A),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
 
                 // Badge de Abierto / Cerrado arriba a la izquierda

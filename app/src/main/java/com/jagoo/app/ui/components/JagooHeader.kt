@@ -226,7 +226,7 @@ fun JagooHeader(
                             Icon(
                                 imageVector = Icons.Default.Search,
                                 contentDescription = null,
-                                tint = Color.Gray,
+                                tint = Color(0xFF5A5A5A),
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(JagooSpacing.sm))
@@ -236,7 +236,7 @@ fun JagooHeader(
                                         text = placeholderText,
                                         fontFamily = PoppinsFontFamily,
                                         fontSize = 14.sp,
-                                        color = Color.Gray
+                                        color = Color(0xFF5A5A5A)
                                     )
                                 }
                                 innerTextField()
