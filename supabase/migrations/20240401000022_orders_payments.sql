@@ -215,7 +215,7 @@ CREATE TRIGGER trg_guard_order_columns
 --      NEGOCIO_NO_DISPONIBLE · NEGOCIO_CERRADO · CARRITO_VACIO ·
 --      PRODUCTO_NO_DISPONIBLE · CANTIDAD_INVALIDA · PRECIO_INVALIDO ·
 --      PEDIDO_MINIMO:<monto> · ZONA_REQUERIDA · ZONA_INVALIDA ·
---      EDAD_NO_VERIFICADA · MENOR_DE_EDAD · RECETA_REQUERIDA ·
+--      EDAD_NO_VERIFICADA · MENOR_DE_EDAD · EDAD_NO_CONFIRMADA · RECETA_REQUERIDA ·
 --      EFECTIVO_INSUFICIENTE · REPARTO_INVALIDO
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.create_order(
@@ -226,7 +226,8 @@ CREATE OR REPLACE FUNCTION public.create_order(
   p_payment_method    text    DEFAULT 'cash',
   p_cash_tendered     numeric DEFAULT NULL,
   p_coupon_code       text    DEFAULT NULL,
-  p_prescription_path text    DEFAULT NULL
+  p_prescription_path text    DEFAULT NULL,
+  p_age_confirmed     boolean DEFAULT false
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -288,6 +289,8 @@ BEGIN
      WHERE id = v_item.dish_id AND restaurant_id = p_restaurant_id
        AND deleted_at IS NULL AND is_available;
     IF NOT FOUND THEN RAISE EXCEPTION 'PRODUCTO_NO_DISPONIBLE'; END IF;
+    -- Defensa: no se vende nada que exija receta (el trigger ya lo impide al guardar el producto)
+    IF v_dish.requires_prescription THEN RAISE EXCEPTION 'PRODUCTO_NO_DISPONIBLE'; END IF;
     IF v_item.quantity IS NULL OR v_item.quantity < 1 OR v_item.quantity > 50 THEN
       RAISE EXCEPTION 'CANTIDAD_INVALIDA';
     END IF;
@@ -310,6 +313,8 @@ BEGIN
   IF v_age_req THEN
     IF v_prof.birth_date IS NULL THEN RAISE EXCEPTION 'EDAD_NO_VERIFICADA'; END IF;
     IF NOT public.is_adult(v_prof.birth_date) THEN RAISE EXCEPTION 'MENOR_DE_EDAD'; END IF;
+    -- El cliente debe confirmar en el checkout que es mayor de 18 y que mostrará su cédula
+    IF NOT COALESCE(p_age_confirmed, false) THEN RAISE EXCEPTION 'EDAD_NO_CONFIRMADA'; END IF;
   END IF;
 
   -- Receta (farmacia): foto subida a <uid>/...
@@ -329,8 +334,11 @@ BEGIN
     v_fee := v_zone.fee;
     v_zone_name := v_zone.name;
   ELSE
-    SELECT COALESCE((SELECT value::numeric FROM public.settings WHERE key = 'default_delivery_fee'), 0)
-      INTO v_fee;
+    -- Sin zonas: tarifa propia del negocio (restaurants.delivery_fee); si no tiene, la de ajustes
+    v_fee := v_rest.delivery_fee;
+    IF v_fee IS NULL THEN
+      SELECT COALESCE((SELECT value::numeric FROM public.settings WHERE key = 'default_delivery_fee'), 0) INTO v_fee;
+    END IF;
   END IF;
 
   -- Cupón (se valida en el servidor)
@@ -406,8 +414,8 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.create_order(text, jsonb, text, uuid, text, numeric, text, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.create_order(text, jsonb, text, uuid, text, numeric, text, text) TO authenticated;
+REVOKE ALL ON FUNCTION public.create_order(text, jsonb, text, uuid, text, numeric, text, text, boolean) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.create_order(text, jsonb, text, uuid, text, numeric, text, text, boolean) TO authenticated;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 5. Transferencia: comprobante obligatorio y verificación
@@ -1135,7 +1143,7 @@ BEGIN
   ASSERT EXISTS (SELECT 1 FROM information_schema.routines
                  WHERE routine_schema = 'public' AND routine_name = 'create_order'),
     'FALLA: create_order no existe';
-  ASSERT NOT has_function_privilege('anon', 'public.create_order(text,jsonb,text,uuid,text,numeric,text,text)', 'EXECUTE'),
+  ASSERT NOT has_function_privilege('anon', 'public.create_order(text,jsonb,text,uuid,text,numeric,text,text,boolean)', 'EXECUTE'),
     'FALLA: anon puede ejecutar create_order';
   ASSERT NOT has_function_privilege('authenticated', 'public.cancel_expired_transfer_orders()', 'EXECUTE'),
     'FALLA: authenticated puede ejecutar cancel_expired_transfer_orders';

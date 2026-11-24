@@ -22,6 +22,25 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 1. Tipo de negocio
 -- ─────────────────────────────────────────────────────────────────────────────
+-- get_my_role(): las migraciones 11, 12, 14 y 18 la definen STABLE con `SET LOCAL
+-- row_security = off` en el cuerpo, y PostgreSQL lo rechaza al ejecutarla
+-- ("SET is not allowed in a non-volatile function"). El ajuste va en la cláusula
+-- de la función, que sí está permitida.
+CREATE OR REPLACE FUNCTION public.get_my_role()
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+SET row_security = off
+AS $$
+DECLARE
+  v_role text;
+BEGIN
+  SELECT role INTO v_role FROM public.profiles WHERE id = auth.uid();
+  RETURN COALESCE(v_role, 'customer');
+END;
+$$;
 DO $$
 BEGIN
   CREATE TYPE public.business_type AS ENUM ('restaurante', 'tienda', 'farmacia', 'licoreria');
@@ -62,8 +81,9 @@ BEGIN
     RAISE EXCEPTION 'RESTRICCION_INVALIDA: solo los productos de una licorería pueden ser para mayores de 18';
   END IF;
 
-  IF NEW.requires_prescription AND v_type IS DISTINCT FROM 'farmacia' THEN
-    RAISE EXCEPTION 'RESTRICCION_INVALIDA: solo los productos de una farmacia pueden requerir receta';
+  -- Medicamentos: SOLO venta libre. Jagoo no vende productos que exijan receta médica.
+  IF NEW.requires_prescription THEN
+    RAISE EXCEPTION 'RESTRICCION_INVALIDA: no se venden productos con receta; Medicamentos solo ofrece venta libre';
   END IF;
 
   RETURN NEW;
@@ -75,6 +95,14 @@ CREATE TRIGGER trg_dish_restrictions
   BEFORE INSERT OR UPDATE OF restaurant_id, is_age_restricted, requires_prescription
   ON public.dishes
   FOR EACH ROW EXECUTE FUNCTION public.enforce_dish_restrictions();
+
+-- Limpieza: cualquier producto que hubiera quedado marcado como 'con receta' se retira del catálogo
+-- (borrado lógico, reversible) y se quita la marca. Idempotente.
+UPDATE public.dishes
+   SET requires_prescription = false,
+       is_available = false,
+       deleted_at = COALESCE(deleted_at, now())
+ WHERE requires_prescription;
 
 -- Si cambia el tipo del negocio, se recalculan las marcas de sus productos
 CREATE OR REPLACE FUNCTION public.sync_dishes_on_type_change()
@@ -286,6 +314,10 @@ GRANT EXECUTE ON FUNCTION public.get_effective_min_order(text) TO authenticated;
 -- 5. RLS
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Clientes: solo negocios activos. Admin y dueño ven el suyo aunque esté inactivo.
+-- Las políticas públicas antiguas (migración 3) permitían leer TODO y se combinan con OR:
+-- hay que quitarlas o los negocios inactivos seguirían visibles para los clientes.
+DROP POLICY IF EXISTS restaurants_select_public ON public.restaurants;
+DROP POLICY IF EXISTS dishes_select_public ON public.dishes;
 DROP POLICY IF EXISTS restaurants_select ON public.restaurants;
 CREATE POLICY restaurants_select ON public.restaurants
   FOR SELECT

@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS ratings (
   id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id        uuid        NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
   customer_id     uuid        NOT NULL REFERENCES profiles(id),
-  restaurant_id   uuid        NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  restaurant_id   text        NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
   courier_id      uuid        REFERENCES profiles(id),
   -- Estrellas: 1-5
   restaurant_stars integer    NOT NULL CHECK (restaurant_stars BETWEEN 1 AND 5),
@@ -69,7 +69,7 @@ SET search_path = public
 AS $$
 DECLARE
   v_customer_id   uuid;
-  v_restaurant_id uuid;
+  v_restaurant_id text;
   v_courier_id    uuid;
   v_status        text;
   v_rating_id     uuid;

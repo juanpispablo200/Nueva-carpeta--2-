@@ -1,0 +1,7 @@
+{
+  "name": "jagoo-security-suite",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node suite.mjs", "test:antes": "node suite.mjs --sin-hardening" },
+  "devDependencies": { "@electric-sql/pglite": "^0.6.0" }
+}

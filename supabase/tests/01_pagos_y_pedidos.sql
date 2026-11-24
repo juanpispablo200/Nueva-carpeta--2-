@@ -41,7 +41,7 @@ BEGIN
     ('00000000-0000-0000-0000-0000000000d1'::uuid, 'test-d1@jagoo.test', 'admin')
   ) AS x(id, email, role)
   LOOP
-    INSERT INTO auth.users (id, email) VALUES (u.id, u.email) ON CONFLICT (id) DO NOTHING;
+    INSERT INTO auth.users (id, email, email_confirmed_at) VALUES (u.id, u.email, now()) ON CONFLICT (id) DO NOTHING;
     INSERT INTO public.profiles (id, full_name, phone, role, is_active)
     VALUES (u.id, 'Prueba ' || u.email, '', u.role, true)
     ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, is_active = true;
@@ -62,13 +62,13 @@ BEGIN
   UPDATE public.business_type_config SET pct_negocio = NULL, pct_driver = NULL, pct_plataforma = NULL, min_order = NULL;
 
   -- Negocios
-  INSERT INTO public.restaurants (id, name, category, business_type, owner_id, min_order, is_open, is_active)
+  INSERT INTO public.restaurants (id, name, category, business_type, owner_id, min_order, delivery_fee, is_open, is_active)
   VALUES
-    ('t-rest', 'Test Restaurante', 'Comida', 'restaurante', '00000000-0000-0000-0000-0000000000b1', 5, true, true),
-    ('t-farm', 'Test Farmacia',    'Salud',  'farmacia',    '00000000-0000-0000-0000-0000000000b2', 5, true, true),
-    ('t-lico', 'Test Licoreria',   'Licor',  'licoreria',   '00000000-0000-0000-0000-0000000000b3', 5, true, true),
-    ('t-off',  'Test Inactivo',    'Comida', 'tienda',      NULL,                                   5, true, false)
-  ON CONFLICT (id) DO UPDATE SET business_type = EXCLUDED.business_type, owner_id = EXCLUDED.owner_id,
+    ('t-rest', 'Test Restaurante', 'Comida', 'restaurante', '00000000-0000-0000-0000-0000000000b1', 5, 2.50, true, true),
+    ('t-farm', 'Test Farmacia',    'Salud',  'farmacia',    '00000000-0000-0000-0000-0000000000b2', 5, 2.50, true, true),
+    ('t-lico', 'Test Licoreria',   'Licor',  'licoreria',   '00000000-0000-0000-0000-0000000000b3', 5, 2.50, true, true),
+    ('t-off',  'Test Inactivo',    'Comida', 'tienda',      NULL,                                   5, 2.50, true, false)
+  ON CONFLICT (id) DO UPDATE SET business_type = EXCLUDED.business_type, owner_id = EXCLUDED.owner_id, delivery_fee = EXCLUDED.delivery_fee,
                                  is_active = EXCLUDED.is_active, is_open = true;
 
   -- Productos
@@ -78,9 +78,6 @@ BEGIN
          ('t-d-farm-otc', 't-farm', 'Venta libre', 'Analgésico', 6),
          ('t-d-off', 't-off', 'Varios', 'Producto inactivo', 6)
   ON CONFLICT (id) DO NOTHING;
-  INSERT INTO public.dishes (id, restaurant_id, section_name, name, price, requires_prescription)
-  VALUES ('t-d-farm-rx', 't-farm', 'Con receta', 'Antibiótico', 12, true)
-  ON CONFLICT (id) DO UPDATE SET requires_prescription = true;
 END;
 $$;
 
@@ -106,6 +103,12 @@ BEGIN
     UPDATE public.dishes SET requires_prescription = true WHERE id = 't-d-lico';
   EXCEPTION WHEN OTHERS THEN v_err := SQLERRM; END;
   ASSERT v_err LIKE 'RESTRICCION_INVALIDA%', 'FALLA T1: receta en una licorería debió rechazarse';
+
+  v_err := NULL;
+  BEGIN
+    UPDATE public.dishes SET requires_prescription = true WHERE id = 't-d-farm-otc';
+  EXCEPTION WHEN OTHERS THEN v_err := SQLERRM; END;
+  ASSERT v_err LIKE 'RESTRICCION_INVALIDA%', 'FALLA T1: un producto con receta debio rechazarse incluso en farmacia';
 
   RAISE NOTICE 'OK T1 restricciones por tipo de producto';
 END;
@@ -436,7 +439,7 @@ BEGIN
   PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}', true);
   EXECUTE 'SET LOCAL ROLE authenticated';
   BEGIN
-    PERFORM public.create_order('t-lico', '[{"dish_id":"t-d-lico","quantity":1,"unit_price":10}]'::jsonb, 'x', NULL, 'cash', 20, NULL, NULL);
+    PERFORM public.create_order('t-lico', '[{"dish_id":"t-d-lico","quantity":1,"unit_price":10}]'::jsonb, 'x', NULL, 'cash', 20, NULL, NULL, true);
   EXCEPTION WHEN OTHERS THEN v_err := SQLERRM; END;
   EXECUTE 'RESET ROLE'; PERFORM pg_temp.sys();
   ASSERT v_err = 'EDAD_NO_VERIFICADA', 'FALLA T7: sin fecha debió fallar (' || COALESCE(v_err, 'sin error') || ')';
@@ -446,7 +449,7 @@ BEGIN
   PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}', true);
   EXECUTE 'SET LOCAL ROLE authenticated';
   BEGIN
-    PERFORM public.create_order('t-lico', '[{"dish_id":"t-d-lico","quantity":1,"unit_price":10}]'::jsonb, 'x', NULL, 'cash', 20, NULL, NULL);
+    PERFORM public.create_order('t-lico', '[{"dish_id":"t-d-lico","quantity":1,"unit_price":10}]'::jsonb, 'x', NULL, 'cash', 20, NULL, NULL, true);
   EXCEPTION WHEN OTHERS THEN v_err := SQLERRM; END;
   EXECUTE 'RESET ROLE'; PERFORM pg_temp.sys();
   ASSERT v_err = 'MENOR_DE_EDAD', 'FALLA T7: un menor debió ser rechazado (' || COALESCE(v_err, 'sin error') || ')';
@@ -466,10 +469,19 @@ BEGIN
   EXECUTE 'RESET ROLE'; PERFORM pg_temp.sys();
   ASSERT v_err = 'FECHA_NACIMIENTO_YA_REGISTRADA', 'FALLA T7: no se puede cambiar la fecha dos veces (' || COALESCE(v_err, 'sin error') || ')';
 
+  -- Adulto que NO confirma la mayoria de edad en el checkout -> rechazado
+  PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  v_err := NULL;
+  BEGIN
+    PERFORM public.create_order('t-lico', '[{"dish_id":"t-d-lico","quantity":1,"unit_price":10}]'::jsonb, 'x', NULL, 'cash', 20, NULL, NULL, false);
+  EXCEPTION WHEN OTHERS THEN v_err := SQLERRM; END;
+  EXECUTE 'RESET ROLE'; PERFORM pg_temp.sys();
+  ASSERT v_err = 'EDAD_NO_CONFIRMADA', 'FALLA T7: sin confirmar mayoria de edad debio fallar (' || COALESCE(v_err, 'sin error') || ')';
   -- Pedido de un adulto → exige verificación al entregar
   PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
   EXECUTE 'SET LOCAL ROLE authenticated';
-  v_res := public.create_order('t-lico', '[{"dish_id":"t-d-lico","quantity":1,"unit_price":10}]'::jsonb, 'x', NULL, 'cash', 20, NULL, NULL);
+  v_res := public.create_order('t-lico', '[{"dish_id":"t-d-lico","quantity":1,"unit_price":10}]'::jsonb, 'x', NULL, 'cash', 20, NULL, NULL, true);
   EXECUTE 'RESET ROLE'; PERFORM pg_temp.sys();
   v_id := (v_res->>'order_id')::uuid;
   ASSERT (SELECT age_check_required FROM public.orders WHERE id = v_id), 'FALLA T7: el pedido debe exigir verificación de edad';
@@ -541,85 +553,36 @@ END;
 $$;
 
 -- ══════════════════════════════════════════════════════════════════════════════
--- T9. Receta (farmacia)
+-- T9. Medicamentos: solo venta libre (nada con receta)
 -- ══════════════════════════════════════════════════════════════════════════════
 DO $$
 DECLARE
-  v_err  text;
-  v_res  jsonb;
-  v_id   uuid;
-  v_id2  uuid;
+  v_err text;
+  v_res jsonb;
 BEGIN
-  -- Sin receta
+  -- No se puede crear un producto con receta
+  BEGIN
+    INSERT INTO public.dishes (id, restaurant_id, section_name, name, price, requires_prescription)
+    VALUES ('t-d-rx-nuevo', 't-farm', 'Con receta', 'Antibiotico', 12, true);
+  EXCEPTION WHEN OTHERS THEN v_err := SQLERRM; END;
+  ASSERT v_err LIKE 'RESTRICCION_INVALIDA%', 'FALLA T9: crear un producto con receta debio rechazarse (' || COALESCE(v_err, 'sin error') || ')';
+
+  -- Un producto de venta libre se pide sin receta
   PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
   EXECUTE 'SET LOCAL ROLE authenticated';
-  BEGIN
-    PERFORM public.create_order('t-farm', '[{"dish_id":"t-d-farm-rx","quantity":1,"unit_price":12}]'::jsonb, 'x', NULL, 'cash', 20, NULL, NULL);
-  EXCEPTION WHEN OTHERS THEN v_err := SQLERRM; END;
-  ASSERT v_err = 'RECETA_REQUERIDA', 'FALLA T9: sin receta debió fallar (' || COALESCE(v_err, 'sin error') || ')';
-
-  -- Con una ruta de receta ajena
-  v_err := NULL;
-  BEGIN
-    PERFORM public.create_order('t-farm', '[{"dish_id":"t-d-farm-rx","quantity":1,"unit_price":12}]'::jsonb, 'x', NULL, 'cash', 20, NULL,
-                                '00000000-0000-0000-0000-0000000000a2/receta.jpg');
-  EXCEPTION WHEN OTHERS THEN v_err := SQLERRM; END;
-  ASSERT v_err = 'RECETA_REQUERIDA', 'FALLA T9: receta en carpeta ajena debió rechazarse';
-
-  -- Venta libre: no pide receta
-  v_res := public.create_order('t-farm', '[{"dish_id":"t-d-farm-otc","quantity":1,"unit_price":6}]'::jsonb, 'x', NULL, 'cash', 20, NULL, NULL);
-  ASSERT NOT (v_res->>'prescription_required')::boolean, 'FALLA T9: producto de venta libre no debe pedir receta';
-
-  -- Con receta propia
-  v_res := public.create_order('t-farm', '[{"dish_id":"t-d-farm-rx","quantity":1,"unit_price":12}]'::jsonb, 'x', NULL, 'cash', 20, NULL,
-                               '00000000-0000-0000-0000-0000000000a1/receta1.jpg');
-  v_id := (v_res->>'order_id')::uuid;
-  v_res := public.create_order('t-farm', '[{"dish_id":"t-d-farm-rx","quantity":1,"unit_price":12}]'::jsonb, 'x', NULL, 'cash', 20, NULL,
-                               '00000000-0000-0000-0000-0000000000a1/receta2.jpg');
-  v_id2 := (v_res->>'order_id')::uuid;
+  v_res := public.create_order('t-farm', '[{"dish_id":"t-d-farm-otc","quantity":1,"unit_price":6}]'::jsonb, 'x', NULL, 'cash', 20, NULL, NULL, false);
   EXECUTE 'RESET ROLE'; PERFORM pg_temp.sys();
-  ASSERT (SELECT prescription_status FROM public.orders WHERE id = v_id) = 'pending', 'FALLA T9: receta debe quedar pendiente';
+  ASSERT NOT (v_res->>'prescription_required')::boolean, 'FALLA T9: venta libre no debe pedir receta';
+  ASSERT NOT (v_res->>'age_check_required')::boolean, 'FALLA T9: Medicamentos no es +18';
 
-  -- Sin receta aprobada el pedido no avanza (ni como dueño del negocio)
-  PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}', true);
-  EXECUTE 'SET LOCAL ROLE authenticated';
-  v_err := NULL;
-  BEGIN
-    UPDATE public.orders SET status = 'accepted' WHERE id = v_id;
-  EXCEPTION WHEN OTHERS THEN v_err := SQLERRM; END;
-  ASSERT v_err LIKE 'RECETA_PENDIENTE%', 'FALLA T9: aceptar sin receta aprobada debió fallar (' || COALESCE(v_err, 'sin error') || ')';
+  -- No queda ningun producto marcado con receta
+  ASSERT NOT EXISTS (SELECT 1 FROM public.dishes WHERE requires_prescription), 'FALLA T9: quedan productos con receta';
 
-  -- Otro negocio no puede revisar la receta
-  EXECUTE 'RESET ROLE'; PERFORM pg_temp.sys();
-  PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b1","role":"authenticated"}', true);
-  EXECUTE 'SET LOCAL ROLE authenticated';
-  v_err := NULL;
-  BEGIN
-    PERFORM public.review_prescription(v_id, true, NULL);
-  EXCEPTION WHEN OTHERS THEN v_err := SQLERRM; END;
-  EXECUTE 'RESET ROLE'; PERFORM pg_temp.sys();
-  ASSERT v_err LIKE 'No tienes permiso%', 'FALLA T9: otro negocio no debe revisar recetas (' || COALESCE(v_err, 'sin error') || ')';
-
-  -- El negocio dueño aprueba → puede aceptar
-  PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}', true);
-  EXECUTE 'SET LOCAL ROLE authenticated';
-  PERFORM public.review_prescription(v_id, true, 'ok');
-  UPDATE public.orders SET status = 'accepted' WHERE id = v_id;
-  EXECUTE 'RESET ROLE'; PERFORM pg_temp.sys();
-  ASSERT (SELECT status FROM public.orders WHERE id = v_id) = 'accepted', 'FALLA T9: con receta aprobada debe poder aceptar';
-
-  -- Rechazar la receta cancela el pedido
-  PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}', true);
-  EXECUTE 'SET LOCAL ROLE authenticated';
-  PERFORM public.review_prescription(v_id2, false, 'ilegible');
-  EXECUTE 'RESET ROLE'; PERFORM pg_temp.sys();
-  ASSERT (SELECT status FROM public.orders WHERE id = v_id2) = 'cancelled'
-     AND (SELECT cancel_reason FROM public.orders WHERE id = v_id2) = 'RECETA_RECHAZADA',
-    'FALLA T9: rechazar la receta debe cancelar el pedido';
-
-  RAISE NOTICE 'OK T9 receta: requerida, solo la revisa su negocio, sin aprobar no avanza, rechazo cancela';
+  RAISE NOTICE 'OK T9 Medicamentos: receta prohibida, venta libre sin receta';
 END;
 $$;
+
+-- ══════════════════════════════════════════════════════════════════════════════
 
 -- ══════════════════════════════════════════════════════════════════════════════
 -- T10. Cliente: sin acceso directo a datos de otros
@@ -653,7 +616,9 @@ DECLARE
   v_report jsonb;
 BEGIN
   -- Pedido entregado hace 31 días con receta → la ruta pasa a la cola y se limpia
-  SELECT id INTO v_id FROM public.orders WHERE prescription_path IS NOT NULL AND status = 'accepted' LIMIT 1;
+  -- Receta antigua (de antes de que se prohibieran): la retencion sigue limpiandola
+  SELECT id INTO v_id FROM public.orders WHERE status = 'accepted' LIMIT 1;
+  UPDATE public.orders SET prescription_path = '00000000-0000-0000-0000-0000000000a1/antigua.jpg' WHERE id = v_id;
   UPDATE public.orders SET status = 'cancelled', cancel_reason = 'PRUEBA' WHERE id = v_id;
   -- updated_at lo actualiza un trigger: se fuerza deshabilitándolo solo en esta transacción
   ALTER TABLE public.orders DISABLE TRIGGER on_order_updated;
