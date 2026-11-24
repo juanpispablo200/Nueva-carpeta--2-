@@ -17,7 +17,15 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const ALLOWED_ROLES = ['customer', 'restaurant', 'admin', 'repartidor']
 
+// El panel web (otro origen) llama a esta función desde el navegador: sin CORS la bloquea.
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
 Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') {
     return json({ error: 'Método no permitido' }, 405)
   }
@@ -60,14 +68,17 @@ Deno.serve(async (req: Request) => {
   }
 
   // Leer y validar el payload
-  let body: { email: string; password: string; full_name: string; phone?: string; role: string }
+  let body: { email: string; password: string; full_name: string; phone?: string; role: string; vehicle_type?: string; plate?: string }
   try {
     body = await req.json()
   } catch {
     return json({ error: 'JSON inválido' }, 400)
   }
 
-  const { email, password, full_name, phone, role } = body
+  const { email, password, full_name, phone, role, vehicle_type, plate } = body
+  // Datos del vehículo (solo repartidores): se muestran al cliente en el seguimiento
+  const vehicle = role === 'repartidor' && ['moto', 'bici', 'carro'].includes(vehicle_type ?? '') ? vehicle_type : null
+  const plateClean = role === 'repartidor' ? (plate ?? '').toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 12) || null : null
 
   if (!email?.trim())     return json({ error: 'El email es obligatorio' }, 400)
   if (!password)          return json({ error: 'La contraseña es obligatoria' }, 400)
@@ -113,6 +124,8 @@ Deno.serve(async (req: Request) => {
       phone:     phone?.trim() ?? '',
       role,
       is_active: true,
+      ...(vehicle ? { vehicle_type: vehicle } : {}),
+      ...(plateClean ? { plate: plateClean } : {}),
     }, { onConflict: 'id' })
 
   if (profileErr) {
@@ -132,6 +145,6 @@ Deno.serve(async (req: Request) => {
 function json(data: unknown, status: number) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...CORS, 'Content-Type': 'application/json' },
   })
 }

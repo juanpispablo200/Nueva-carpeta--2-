@@ -10,10 +10,15 @@
  *   FIREBASE_CLIENT_EMAIL  — email de la cuenta de servicio
  *   FIREBASE_PRIVATE_KEY   — clave privada PEM (con \n literales)
  *   SUPABASE_SERVICE_ROLE_KEY — para leer/escribir profiles y notification_log
+ *   WEBHOOK_SECRET         — mismo valor que el secreto 'webhook_secret' de Vault
+ *
+ * Seguridad: solo acepta llamadas con la cabecera x-webhook-secret correcta
+ * (o Bearer = service role key). verify_jwt = false en supabase/config.toml.
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { encode as encodeBase64Url } from 'https://deno.land/std@0.208.0/encoding/base64url.ts'
+import { isInternalCaller, unauthorized } from '../_shared/auth.ts'
 
 // ── OAuth2: obtener access token para FCM HTTP v1 ─────────────────────────────
 
@@ -153,6 +158,10 @@ Deno.serve(async (req: Request) => {
     return new Response('Method not allowed', { status: 405 })
   }
 
+  // Solo la base de datos u otra función propia pueden mandar notificaciones.
+  // Sin esto, cualquiera con la anon key pública podría escribirle a cualquier usuario.
+  if (!(await isInternalCaller(req))) return unauthorized()
+
   // Verificar Content-Type
   const ct = req.headers.get('Content-Type') ?? ''
   if (!ct.includes('application/json')) {
@@ -169,6 +178,14 @@ Deno.serve(async (req: Request) => {
   const { user_id, order_id, type, title, body } = payload
   if (!user_id || !title || !body) {
     return new Response('Missing required fields', { status: 400 })
+  }
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (typeof user_id !== 'string' || !UUID.test(user_id)
+      || typeof title !== 'string' || title.length > 100
+      || typeof body !== 'string' || body.length > 300
+      || (type !== undefined && (typeof type !== 'string' || type.length > 50))
+      || (order_id !== undefined && order_id !== null && (typeof order_id !== 'string' || !UUID.test(order_id)))) {
+    return new Response('Invalid fields', { status: 400 })
   }
 
   const supabase = createClient(
