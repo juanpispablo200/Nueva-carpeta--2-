@@ -19,7 +19,7 @@ export const NAV: Record<UserRole, NavItem[]> = {
     { key: 'pagos',            label: 'Pagos',            icon: CreditCard,      path: '/admin/pagos'             },
     { key: 'finanzas',         label: 'Finanzas',         icon: BarChart2,       path: '/admin/finanzas'          },
     { key: 'repartidores',     label: 'Repartidores',     icon: Bike,            path: '/admin/repartidores'      },
-    { key: 'restaurantes',     label: 'Restaurantes',     icon: Store,           path: '/admin/restaurantes'      },
+    { key: 'restaurantes',     label: 'Negocios',         icon: Store,           path: '/admin/restaurantes'      },
     { key: 'calificaciones',   label: 'Calificaciones',   icon: Star,            path: '/admin/calificaciones'    },
     { key: 'usuarios',         label: 'Usuarios',         icon: Users,           path: '/admin/usuarios'          },
     { key: 'reportes',         label: 'Reportes',         icon: BarChart2,       path: '/admin/reportes'          },

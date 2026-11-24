@@ -42,7 +42,6 @@ export default function PrivacyPolicyPage() {
               <li>Dirección de entrega (para procesar pedidos)</li>
               <li>Comprobantes de pago (imágenes de transferencias bancarias)</li>
               <li><strong>Fecha de nacimiento</strong> (solo si pides productos para mayores de 18): se registra una sola vez y se usa únicamente para comprobar que eres mayor de edad.</li>
-              <li><strong>Foto de la receta médica</strong> (solo si pides medicamentos con receta): la ve únicamente el negocio al que le pides y el administrador de Jagoo. Es un dato sensible de salud.</li>
               <li>Monto con el que pagas en efectivo (para preparar el cambio)</li>
             </ul>
           </SubSection>
@@ -66,7 +65,6 @@ export default function PrivacyPolicyPage() {
             <li>Enviarte notificaciones push sobre el estado de tu pedido (confirmación, en camino, entregado)</li>
             <li>Verificar comprobantes de pago por transferencia bancaria</li>
             <li>Confirmar tu mayoría de edad al pedir bebidas alcohólicas y permitir que el repartidor verifique tu cédula al entregar</li>
-            <li>Que la farmacia revise tu receta antes de aceptar el pedido</li>
             <li>Preparar el cambio de un pago en efectivo</li>
             <li>Mostrar al cliente la ubicación del repartidor en tiempo real durante la entrega</li>
             <li>Mejorar el servicio mediante análisis de uso agregado y anónimo</li>
@@ -182,7 +180,6 @@ export default function PrivacyPolicyPage() {
           <p>Un proceso automático diario aplica estos plazos:</p>
           <ul>
             <li>Datos de cuenta (incluida la fecha de nacimiento): mientras la cuenta esté activa; se borran al eliminarla.</li>
-            <li><strong>Fotos de recetas:</strong> se borran 30 días después de que el pedido se entrega o se cancela.</li>
             <li><strong>Fotos de comprobantes de pago:</strong> se borran 365 días después de subirse.</li>
             <li><strong>Datos personales de los pedidos</strong> (cliente, dirección, notas): se anonimizan a los 730 días (2 años).</li>
             <li>Importes, fechas y reparto de los pedidos: se conservan sin datos personales por obligación contable y fiscal (el plazo legal exacto está pendiente de confirmación con un contador).</li>

@@ -22,6 +22,8 @@ import FinanzasPage from './pages/admin/FinanzasPage'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import DeleteAccountPage from './pages/DeleteAccountPage'
 import TermsPage from './pages/TermsPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
+import EmailConfirmedPage from './pages/EmailConfirmedPage'
 
 // Restaurant
 import RestaurantHomePage from './pages/restaurant/RestaurantHomePage'
@@ -105,6 +107,15 @@ export default function App() {
         </Route>
 
         <Route
+          path="/restaurant/menu"
+          element={
+            <RequireRole allowedRoles={['restaurant']}>
+              <RestaurantHomePage />
+            </RequireRole>
+          }
+        />
+
+        <Route
           path="/restaurant"
           element={
             <RequireRole allowedRoles={['restaurant']}>
@@ -114,6 +125,8 @@ export default function App() {
         />
 
         <Route path="/acceso-denegado" element={<AccessDeniedPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/email-confirmado" element={<EmailConfirmedPage />} />
         <Route path="/privacy" element={<PrivacyPolicyPage />} />
         <Route path="/delete-account" element={<DeleteAccountPage />} />
         <Route path="/terms" element={<TermsPage />} />

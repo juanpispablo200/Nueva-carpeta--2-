@@ -81,7 +81,7 @@ export default function TermsPage() {
           </p>
           <ul>
             <li><strong>Bebidas alcohólicas (solo mayores de 18):</strong> para pedirlas debes indicar tu fecha de nacimiento (se registra una sola vez en tu perfil). El repartidor verificará tu cédula al entregar y no entregará el pedido si no puede comprobar que eres mayor de edad o si estás en un estado que lo impida. Jagoo puede cancelar el pedido en ese caso.</li>
-            <li><strong>Medicamentos con receta:</strong> solo se piden subiendo una foto de tu receta. La farmacia la revisa y puede aprobarla o rechazarla; mientras no esté aprobada, el pedido no avanza, y si se rechaza el pedido se cancela. Los productos de venta libre no necesitan receta.</li>
+            <li><strong>Medicamentos de venta libre:</strong> en Medicamentos solo se ofrecen productos que no requieren receta médica. Jagoo no vende ni entrega medicamentos con receta.</li>
             <li>Jagoo no da consejo médico. Lee las indicaciones y consulta a un profesional de la salud.</li>
             <li>El negocio es responsable de contar con los permisos que su actividad exige.</li>
           </ul>

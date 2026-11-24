@@ -35,12 +35,25 @@ export default function OrderCard({ order, onAdvance, onCancel }: Props) {
   const mins = useElapsed(order.created_at)
   const next = NEXT_STATUS[order.status]
 
+  const [err, setErr] = useState('')
+
+  /** Traduce el error del servidor a un mensaje que el negocio entienda. */
+  function friendly(e: unknown): string {
+    const m = e instanceof Error ? e.message : (e as { message?: string })?.message ?? ''
+    if (m.includes('PAGO_PENDIENTE')) return 'El pago de este pedido aún no está verificado.'
+    if (m.includes('EDAD_NO_VERIFICADA')) return 'El repartidor debe verificar la cédula antes de entregar.'
+    if (m.includes('Transición no permitida') || m.includes('no autorizado')) return 'Ese cambio de estado no está permitido para este pedido.'
+    return 'No se pudo cambiar el estado. Revisa tu conexión e intenta de nuevo.'
+  }
+
   async function advance() {
     if (!next) return
-    setBusy(true); try { await onAdvance(order.id, next) } finally { setBusy(false) }
+    setErr(''); setBusy(true)
+    try { await onAdvance(order.id, next) } catch (e) { setErr(friendly(e)) } finally { setBusy(false) }
   }
   async function cancel() {
-    setBusy(true); try { await onCancel(order.id) } finally { setBusy(false) }
+    setErr(''); setBusy(true)
+    try { await onCancel(order.id) } catch (e) { setErr(friendly(e)) } finally { setBusy(false) }
   }
 
   const time = new Date(order.created_at).toLocaleTimeString('es-EC', { hour:'2-digit', minute:'2-digit' })
@@ -120,6 +133,7 @@ export default function OrderCard({ order, onAdvance, onCancel }: Props) {
       {order.payment_method === 'cash' && order.change_due != null && (
         <p className="px-4 pb-2 text-xs text-[var(--c-ink-muted)]">Efectivo: paga con ${(order.total + order.change_due).toFixed(2)} (cambio ${order.change_due.toFixed(2)})</p>
       )}
+      {err && <p role="alert" className="px-4 pb-2 text-xs font-semibold text-red-700">{err}</p>}
       {/* Acciones */}
       {!done && (
         <div className="mt-1 flex gap-2 px-4 pb-4">

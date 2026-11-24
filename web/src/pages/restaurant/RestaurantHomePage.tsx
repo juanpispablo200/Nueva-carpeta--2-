@@ -4,6 +4,7 @@ import { supabase, getMyProfile, type Profile } from '../../lib/supabase'
 import type { Restaurant, Order } from '../../lib/types'
 import { useOrders }   from '../../hooks/useOrders'
 import OrderCard       from '../../components/restaurant/OrderCard'
+import { useLocation } from 'react-router-dom'
 import MenuEditor      from '../../components/restaurant/MenuEditor'
 import { EmptyState } from '../../components/ui'
 import AppLayout from '../../components/layout/AppLayout'
@@ -21,7 +22,8 @@ const COLUMNS: { status: Order['status'][]; label: string; color: string }[] = [
 export default function RestaurantHomePage() {
   const [profile,    setProfile]    = useState<Profile | null>(null)
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
-  const [tab,        setTab]        = useState<Tab>('pedidos')
+  const location = useLocation()
+  const [tab,        setTab]        = useState<Tab>(location.pathname.endsWith('/menu') ? 'menu' : 'pedidos')
   const [loading,    setLoading]    = useState(true)
 
   useEffect(() => {
@@ -97,7 +99,7 @@ export default function RestaurantHomePage() {
       {/* Estado abierto/cerrado */}
       <div className="card p-4 mb-6 flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-[var(--color-ink)] mb-1">Estado del restaurante</p>
+          <p className="text-sm font-semibold text-[var(--color-ink)] mb-1">Estado del negocio</p>
           <p className={`text-xs font-bold ${restaurant?.is_open ? 'text-emerald-600' : 'text-red-500'}`}>
             {restaurant?.is_open ? '● Recibiendo pedidos' : '● Pausado'}
           </p>

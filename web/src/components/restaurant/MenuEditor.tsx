@@ -21,6 +21,13 @@ export default function MenuEditor({ restaurantId }: Props) {
   const [imageFile,    setImageFile]    = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [uploading,    setUploading]    = useState(false)
+  // Medicamentos (farmacia): solo venta libre. El tipo del negocio decide si se muestra el aviso.
+  const [isPharmacy,   setIsPharmacy]   = useState(false)
+  const [otcConfirmed, setOtcConfirmed] = useState(false)
+  useEffect(() => {
+    supabase.from('restaurants').select('business_type').eq('id', restaurantId).maybeSingle()
+      .then(({ data }) => setIsPharmacy(data?.business_type === 'farmacia'))
+  }, [restaurantId])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -85,6 +92,10 @@ export default function MenuEditor({ restaurantId }: Props) {
       setMsg({ type: 'err', text: 'Nombre y precio son obligatorios' })
       return
     }
+    if (isPharmacy && !otcConfirmed) {
+      setMsg({ type: 'err', text: 'Confirma que el producto es de venta libre (sin receta). Medicamentos con receta no se pueden vender.' })
+      return
+    }
     setSaving(true); setMsg(null)
 
     try {
@@ -97,7 +108,7 @@ export default function MenuEditor({ restaurantId }: Props) {
         setUploading(false)
       }
 
-      const payload = { ...form, image_url: finalImageUrl }
+      const payload = { ...form, image_url: finalImageUrl, requires_prescription: false }
 
       if (editing && editing !== 'new') {
         await supabase.from('dishes').update(payload).eq('id', editing.id)
@@ -241,12 +252,21 @@ export default function MenuEditor({ restaurantId }: Props) {
           </div>
 
           {/* Toggles */}
+          {isPharmacy && (
+            <div className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="note">
+              <p className="font-semibold">Solo medicamentos de venta libre, sin receta</p>
+              <label className="mt-2 flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={otcConfirmed} onChange={e => setOtcConfirmed(e.target.checked)} className="w-4 h-4" />
+                Confirmo que este producto es de venta libre y no requiere receta médica
+              </label>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-5 mt-4">
             {([
               ['is_available', 'Disponible'],
               ['is_popular',   'Popular'],
               ['is_offer',     'En oferta'],
-              ['requires_prescription', 'Requiere receta (solo farmacias; sin marcar = venta libre)'],
             ] as const).map(([key, label]) => (
               <label key={key} className="flex items-center gap-2 cursor-pointer select-none text-sm text-[var(--color-ink-muted)]">
                 <input

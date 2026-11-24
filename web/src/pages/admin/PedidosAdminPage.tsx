@@ -111,7 +111,7 @@ export default function PedidosAdminPage() {
 
           {/* Restaurante */}
           <select value={restaurantId} onChange={e => setFilter('rest', e.target.value)} className="input text-sm cursor-pointer">
-            <option value="">Todos los restaurantes</option>
+            <option value="">Todos los negocios</option>
             {restaurants.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
 

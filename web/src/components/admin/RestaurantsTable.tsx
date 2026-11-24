@@ -54,12 +54,12 @@ export default function RestaurantsTable() {
 
   return (
     <div className="animate-in">
-      <SectionHeader title={`Restaurantes${restaurants.length ? ` (${restaurants.length})` : ''}`}>
+      <SectionHeader title={`Negocios${restaurants.length ? ` (${restaurants.length})` : ''}`}>
         <div className="flex items-center gap-3">
           <div className="relative w-full sm:w-56">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink-sub)]" />
             <Input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar…" aria-label="Buscar restaurantes" className="pl-8" />
+              placeholder="Buscar…" aria-label="Buscar negocios" className="pl-8" />
           </div>
           <button onClick={() => setShowModal(true)} className="btn-primary shrink-0">
             <Store size={15} /> Nuevo
@@ -73,9 +73,9 @@ export default function RestaurantsTable() {
             {Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
           </div>
         ) : filtered.length === 0 ? (
-          <EmptyState icon={<Store size={20}/>} title="Sin restaurantes"
+          <EmptyState icon={<Store size={20}/>} title="Sin negocios"
             description="Crea el primer restaurante usando el botón Nuevo."
-            action={<button onClick={() => setShowModal(true)} className="btn-primary"><Store size={15}/> Crear restaurante</button>}
+            action={<button onClick={() => setShowModal(true)} className="btn-primary"><Store size={15}/> Crear negocio</button>}
           />
         ) : (
           <div className="overflow-x-auto">

@@ -44,7 +44,7 @@ export default function CreateRestaurantModal({ onClose, onSuccess }: Props) {
         is_featured:   false,
         rating:        0,
         review_count:  0,
-        owner_id:      user?.id ?? null,
+        owner_id:      null, // el dueño se asigna al crear su usuario (RPC create_restaurant_user)
       })
       if (error) throw error
       onSuccess(); onClose()
@@ -64,7 +64,7 @@ export default function CreateRestaurantModal({ onClose, onSuccess }: Props) {
             <div className="w-8 h-8 rounded-[var(--radius-md)] bg-[var(--color-brand-100)] flex items-center justify-center">
               <Store size={16} className="text-[var(--color-brand-700)]" />
             </div>
-            <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">Nuevo restaurante</h2>
+            <h2 className="font-display text-lg font-bold text-[var(--color-ink)]">Nuevo negocio</h2>
           </div>
           <button onClick={onClose} className="text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] transition-colors">
             <X size={20} />
@@ -80,7 +80,7 @@ export default function CreateRestaurantModal({ onClose, onSuccess }: Props) {
             <select value={form.business_type} onChange={e => set('business_type', e.target.value)} className="input cursor-pointer">
               <option value="restaurante">Restaurante</option>
               <option value="tienda">Tienda</option>
-              <option value="farmacia">Farmacia</option>
+              <option value="farmacia">Medicamentos (solo venta libre, sin receta)</option>
               <option value="licoreria">Licorería (venta de alcohol, solo +18)</option>
             </select>
           </div>
@@ -95,7 +95,7 @@ export default function CreateRestaurantModal({ onClose, onSuccess }: Props) {
           {/* Nombre */}
           <div>
             <label className="block text-xs font-semibold text-[var(--color-ink-sub)] uppercase tracking-wide mb-1.5">
-              Nombre del restaurante *
+              Nombre del negocio *
             </label>
             <input required value={form.name} onChange={e => set('name', e.target.value)}
               placeholder="Ej: Burger Master" className="input" />

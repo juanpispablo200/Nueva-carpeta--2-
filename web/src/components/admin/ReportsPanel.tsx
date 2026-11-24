@@ -243,7 +243,7 @@ export default function ReportsPanel() {
       {/* Top restaurantes */}
       {stats.topRest.length > 0 && (
         <div className="card p-6">
-          <SectionHeader title="Top restaurantes" />
+          <SectionHeader title="Top negocios" />
           <div className="space-y-3">
             {stats.topRest.map((r, i) => (
               <div key={r.name} className="flex items-center gap-3 py-2 border-b border-[var(--color-border)] last:border-0">

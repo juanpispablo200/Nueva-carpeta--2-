@@ -128,7 +128,7 @@ export default function CalificacionesPage() {
   }, [])
 
   const tabs = [
-    { key: 'restaurants' as const, label: 'Restaurantes', icon: Store },
+    { key: 'restaurants' as const, label: 'Negocios', icon: Store },
     { key: 'couriers'    as const, label: 'Repartidores', icon: Bike  },
     { key: 'recent'      as const, label: 'Recientes',    icon: MessageSquare },
   ]

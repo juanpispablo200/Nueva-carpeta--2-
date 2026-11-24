@@ -11,7 +11,7 @@ type Tab = 'reportes' | 'usuarios' | 'restaurantes'
 const NAV: { key: Tab; label: string; icon: typeof BarChart2 }[] = [
   { key: 'reportes',     label: 'Reportes',     icon: BarChart2 },
   { key: 'usuarios',     label: 'Usuarios',     icon: Users     },
-  { key: 'restaurantes', label: 'Restaurantes', icon: Store     },
+  { key: 'restaurantes', label: 'Negocios', icon: Store     },
 ]
 
 export default function AdminHomePage() {
