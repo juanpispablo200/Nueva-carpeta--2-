@@ -60,7 +60,7 @@ fun DriverGananciasScreen(
         ) {
             IconButton(
                 onClick = onBackClick,
-                modifier = Modifier.size(36.dp).clip(CircleShape).background(Color.White)
+                modifier = Modifier.size(48.dp).clip(CircleShape).background(Color.White)
             ) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver", tint = JagooGreen, modifier = Modifier.size(20.dp))
             }

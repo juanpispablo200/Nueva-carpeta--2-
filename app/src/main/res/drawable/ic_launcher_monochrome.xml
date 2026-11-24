@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Jagoo — Ícono monocromático (íconos con tema, Android 13+): misma silueta, un solo color -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Círculo exterior amarillo -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M54,18 C34.1,18 18,34.1 18,54 C18,73.9 34.1,90 54,90 C73.9,90 90,73.9 90,54 C90,34.1 73.9,18 54,18Z"/>
+
+    <!-- Cuerpo de la moto (simplificado) -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M34,56 L38,48 L52,48 L56,44 L68,44 L72,48 L74,56 L70,58 L38,58 Z"/>
+
+    <!-- Rueda trasera -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M38,58 A7,7 0 1,0 38.01,58 Z"/>
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M38,58 A4,4 0 1,0 38.01,58 Z"/>
+
+    <!-- Rueda delantera -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M70,58 A7,7 0 1,0 70.01,58 Z"/>
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M70,58 A4,4 0 1,0 70.01,58 Z"/>
+
+    <!-- Casco del repartidor -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M56,44 L56,38 Q56,33 61,33 Q66,33 66,38 L66,44 Z"/>
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M57,41 L65,41 L65,43 L57,43 Z"/>
+
+    <!-- Texto J -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M51,36 L55,36 L55,46 Q55,50 51,50 Q47,50 47,46 L49,46 Q49,48 51,48 Q53,48 53,46 L53,36 Z"/>
+</vector>

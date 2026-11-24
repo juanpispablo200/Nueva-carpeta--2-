@@ -25,6 +25,10 @@ import androidx.compose.ui.unit.sp
 import com.jagoo.app.data.Category
 import com.jagoo.app.ui.theme.JagooGreen
 import com.jagoo.app.ui.theme.JagooTextPrimary
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import com.jagoo.app.ui.theme.PoppinsFontFamily
 
 @Composable
@@ -45,7 +49,8 @@ fun CategoryItem(
         verticalArrangement = Arrangement.Center,
         modifier = Modifier
             .width(72.dp)
-            .clickable { onClick() }
+            .clickable(role = Role.Button, onClickLabel = "Ver ${category.name}") { onClick() }
+            .semantics { selected = isSelected }
     ) {
         Box(
             contentAlignment = Alignment.Center,
@@ -61,7 +66,8 @@ fun CategoryItem(
         ) {
             Text(
                 text = category.iconEmoji,
-                fontSize = 28.sp
+                fontSize = 28.sp,
+                modifier = Modifier.clearAndSetSemantics { }
             )
         }
         Spacer(modifier = Modifier.height(6.dp))

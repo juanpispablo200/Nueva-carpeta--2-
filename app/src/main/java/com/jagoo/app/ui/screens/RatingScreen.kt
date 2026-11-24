@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,6 +36,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jagoo.app.ui.theme.JagooBackground
@@ -194,16 +198,22 @@ private fun RatingCard(
             Spacer(Modifier.height(12.dp))
 
             // Estrellas
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row {
                 (1..5).forEach { i ->
-                    Icon(
-                        imageVector = if (i <= stars) Icons.Default.Star else Icons.Outlined.StarOutline,
-                        contentDescription = "$i estrellas",
-                        tint = if (i <= stars) JagooYellow else Color.Gray.copy(alpha = 0.4f),
+                    Box(
+                        contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .size(36.dp)
-                            .clickable { onStarClick(i) }
-                    )
+                            .size(48.dp)
+                            .clickable(role = Role.Button) { onStarClick(i) }
+                            .semantics { selected = i <= stars }
+                    ) {
+                        Icon(
+                            imageVector = if (i <= stars) Icons.Default.Star else Icons.Outlined.StarOutline,
+                            contentDescription = if (i == 1) "1 estrella" else "$i estrellas",
+                            tint = if (i <= stars) JagooYellow else Color.Gray.copy(alpha = 0.4f),
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
                 }
             }
 

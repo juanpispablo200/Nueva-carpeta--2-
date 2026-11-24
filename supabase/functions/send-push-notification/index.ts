@@ -153,6 +153,12 @@ Deno.serve(async (req: Request) => {
     return new Response('Method not allowed', { status: 405 })
   }
 
+  // Verificar Content-Type
+  const ct = req.headers.get('Content-Type') ?? ''
+  if (!ct.includes('application/json')) {
+    return new Response('Content-Type debe ser application/json', { status: 415 })
+  }
+
   let payload: PushPayload
   try {
     payload = await req.json()

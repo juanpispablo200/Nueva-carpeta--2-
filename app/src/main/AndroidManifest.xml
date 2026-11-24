@@ -9,11 +9,7 @@
     <!-- ── Notificaciones push (Android 13+) ──────────────────────────────── -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- ── Leer imágenes para subir comprobantes ──────────────────────────── -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <!-- Fallback Android 12 y anteriores -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
+    <!-- Comprobantes: se eligen con el selector del sistema (GetContent); no requiere permisos de almacenamiento ni de fotos. -->
 
     <application
         android:allowBackup="false"
@@ -23,6 +19,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Jagoo"
         android:networkSecurityConfig="@xml/network_security_config">
+
+        <!-- Crashlytics: solo activo en release (ver manifestPlaceholders en build.gradle.kts) -->
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="${crashlyticsEnabled}" />
 
         <!-- Google Maps API Key (valor en local.properties → manifestPlaceholders) -->
         <meta-data
@@ -47,9 +48,11 @@
             android:theme="@style/Theme.Jagoo"
             android:windowSoftInputMode="adjustResize"
             android:screenOrientation="portrait">
-            <!-- Deep link: jagoo://order/{orderId} desde notificaciones push -->
+            <!-- Deep link: jagoo://order/{orderId} desde notificaciones push internas.
+                 MainActivity está exported=false a propósito; el PendingIntent lo abre
+                 directamente desde el proceso de la app. No se necesita BROWSABLE. -->
             <intent-filter>
-                <action android:name="android.intent.action_VIEW" />
+                <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="jagoo" android:host="order" />
             </intent-filter>

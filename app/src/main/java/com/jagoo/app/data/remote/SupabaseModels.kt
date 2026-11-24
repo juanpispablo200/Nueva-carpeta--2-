@@ -35,7 +35,9 @@ data class RestaurantDto(
     @SerialName("is_featured")  val isFeatured: Boolean  = false,
     @SerialName("is_offer")     val isOffer: Boolean     = false,
     @SerialName("offer_text")   val offerText: String?   = null,
-    @SerialName("owner_id")     val ownerId: String?     = null
+    @SerialName("owner_id")     val ownerId: String?     = null,
+    @SerialName("business_type") val businessType: String = "restaurante",
+    @SerialName("is_active")    val isActive: Boolean    = true
 )
 
 @Serializable
@@ -53,7 +55,9 @@ data class DishDto(
     @SerialName("is_offer")        val isOffer: Boolean      = false,
     @SerialName("offer_badge")     val offerBadge: String?   = null,
     // option_groups viene como JSON de Supabase; se parsea en el mapper
-    @SerialName("option_groups")   val optionGroupsJson: String = "[]"
+    @SerialName("option_groups")   val optionGroupsJson: String = "[]",
+    @SerialName("is_age_restricted")     val isAgeRestricted: Boolean = false,
+    @SerialName("requires_prescription") val requiresPrescription: Boolean = false
 )
 
 @Serializable
@@ -77,11 +81,43 @@ data class OrderDto(
     val total: Double                                         = 0.0,
     val status: String                                        = "pending",
     @SerialName("delivery_address")   val deliveryAddress: String? = null,
-    @SerialName("repartidor_id")      val repartidorId: String? = null,
+    @SerialName("courier_id")         val courierId: String? = null,
     @SerialName("courier_name")       val courierName: String? = null,
     @SerialName("courier_vehicle")    val courierVehicle: String? = null,
     @SerialName("courier_plate")      val courierPlate: String? = null,
-    @SerialName("created_at")         val createdAt: String   = ""
+    @SerialName("created_at")         val createdAt: String   = "",
+    @SerialName("payment_method")     val paymentMethod: String = "cash",
+    @SerialName("payment_status")     val paymentStatus: String = "pending",
+    @SerialName("change_due")         val changeDue: Double? = null,
+    @SerialName("transfer_deadline")  val transferDeadline: String? = null,
+    @SerialName("cancel_reason")      val cancelReason: String? = null,
+    @SerialName("age_check_required") val ageCheckRequired: Boolean = false,
+    @SerialName("prescription_required") val prescriptionRequired: Boolean = false,
+    @SerialName("prescription_status")   val prescriptionStatus: String = "none"
+)
+
+/** Zona de envío (tabla delivery_zones). */
+@Serializable
+data class DeliveryZoneDto(
+    val id: String       = "",
+    val name: String     = "",
+    val fee: Double      = 0.0,
+    @SerialName("is_active")  val isActive: Boolean = true,
+    @SerialName("sort_order") val sortOrder: Int    = 0
+)
+
+/** Respuesta de la RPC create_order. */
+@Serializable
+data class CreateOrderResponse(
+    @SerialName("order_id")          val orderId: String = "",
+    val subtotal: Double             = 0.0,
+    @SerialName("delivery_fee")      val deliveryFee: Double = 0.0,
+    val discount: Double             = 0.0,
+    val total: Double                = 0.0,
+    @SerialName("change_due")        val changeDue: Double? = null,
+    @SerialName("transfer_deadline") val transferDeadline: String? = null,
+    @SerialName("age_check_required")    val ageCheckRequired: Boolean = false,
+    @SerialName("prescription_required") val prescriptionRequired: Boolean = false
 )
 
 @Serializable

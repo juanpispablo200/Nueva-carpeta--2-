@@ -190,7 +190,19 @@ class DriverRepartidorViewModel(application: Application) : AndroidViewModel(app
                 if (nuevoStatus == "delivered") stopLocationTracking()
                 cargarPedidos()
             } catch (e: Exception) {
-                _error.value = "Transición de estado no permitida"
+                _error.value = if (e.message?.contains("EDAD_NO_VERIFICADA") == true) "Verifica la cédula del cliente antes de entregar." else "Transición de estado no permitida"
+            }
+        }
+    }
+
+    /** El repartidor confirma que verificó la cédula (pedidos con productos +18). */
+    fun confirmarEdad(orderId: String) {
+        viewModelScope.launch {
+            try {
+                supabase.postgrest.rpc("confirm_age_verification", buildJsonObject { put("p_order_id", orderId) })
+                cargarPedidos()
+            } catch (e: Exception) {
+                _error.value = "No se pudo registrar la verificación. Revisa tu conexión e intenta de nuevo."
             }
         }
     }

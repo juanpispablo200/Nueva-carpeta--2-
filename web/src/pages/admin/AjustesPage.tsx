@@ -8,6 +8,7 @@ const SETTING_META: Record<string, { label: string; description: string; type: '
   platform_name:          { label: 'Nombre de la plataforma',       description: 'Aparece en notificaciones y correos.',                   type: 'text'   },
   default_delivery_fee:   { label: 'Costo de envío por defecto ($)', description: 'Usado si el restaurante no define uno.',                 type: 'number' },
   driver_fee_per_delivery:{ label: 'Comisión del repartidor ($)',    description: 'Ganancia fija por entrega completada.',                  type: 'number' },
+  transfer_timeout_minutes:{ label: 'Minutos para subir comprobante', description: 'Pasado este plazo, el pedido por transferencia sin comprobante se cancela solo.', type: 'number' },
   global_schedule:        { label: 'Horario global de operación',    description: 'Formato HH:MM-HH:MM, ej: 08:00-22:00.',                 type: 'text'   },
   maintenance_mode:       { label: 'Modo mantenimiento',             description: 'Muestra aviso de mantenimiento a los clientes.',         type: 'toggle' },
   bank_name:              { label: 'Banco',                          description: 'Nombre del banco para pagos por transferencia.',         type: 'text'   },
@@ -38,6 +39,18 @@ export default function AjustesPage() {
   }
 
   async function save() {
+    // Validar valores numéricos antes de guardar
+    const fee    = parseFloat(settings['default_delivery_fee'] ?? '0')
+    const driverFee = parseFloat(settings['driver_fee_per_delivery'] ?? '0')
+    if (isNaN(fee) || fee < 0) {
+      setMsg({ type: 'err', text: 'El costo de envío debe ser un número positivo.' })
+      return
+    }
+    if (isNaN(driverFee) || driverFee < 0) {
+      setMsg({ type: 'err', text: 'La comisión del repartidor debe ser un número positivo.' })
+      return
+    }
+
     setSaving(true); setMsg(null)
     try {
       const rows = Object.entries(settings).map(([key, value]) => ({ key, value }))

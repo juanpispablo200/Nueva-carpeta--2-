@@ -8,7 +8,7 @@ interface Props { restaurantId: string }
 
 const EMPTY: Omit<Dish, 'id' | 'restaurant_id' | 'restaurant_name'> = {
   section_name: '', name: '', description: '', price: 0,
-  image_url: '', is_available: true, is_popular: false, is_offer: false, offer_badge: null,
+  image_url: '', is_available: true, is_popular: false, is_offer: false, offer_badge: null, requires_prescription: false,
 }
 
 export default function MenuEditor({ restaurantId }: Props) {
@@ -46,7 +46,7 @@ export default function MenuEditor({ restaurantId }: Props) {
     setForm({
       section_name: dish.section_name, name: dish.name, description: dish.description,
       price: dish.price, image_url: dish.image_url, is_available: dish.is_available,
-      is_popular: dish.is_popular, is_offer: dish.is_offer, offer_badge: dish.offer_badge,
+      is_popular: dish.is_popular, is_offer: dish.is_offer, offer_badge: dish.offer_badge, requires_prescription: dish.requires_prescription ?? false,
     })
     setImageFile(null)
     setImagePreview(dish.image_url || null)
@@ -246,6 +246,7 @@ export default function MenuEditor({ restaurantId }: Props) {
               ['is_available', 'Disponible'],
               ['is_popular',   'Popular'],
               ['is_offer',     'En oferta'],
+              ['requires_prescription', 'Requiere receta (solo farmacias; sin marcar = venta libre)'],
             ] as const).map(([key, label]) => (
               <label key={key} className="flex items-center gap-2 cursor-pointer select-none text-sm text-[var(--color-ink-muted)]">
                 <input

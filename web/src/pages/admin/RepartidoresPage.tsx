@@ -9,18 +9,27 @@ import { useToast } from '../../components/common/ToastContext'
 export default function RepartidoresPage() {
   const [repartidores, setRepartidores] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [toggling, setToggling] = useState<string | null>(null)
   const toast = useToast()
 
   async function loadRepartidores() {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('role', 'repartidor')
-      .order('full_name')
-    setRepartidores((data as Profile[]) ?? [])
-    setLoading(false)
+    setLoading(true)
+    setLoadError(null)
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'repartidor')
+        .order('full_name')
+      if (error) throw error
+      setRepartidores((data as Profile[]) ?? [])
+    } catch {
+      setLoadError('No se pudo cargar la lista. Verifica tu conexión.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { loadRepartidores() }, [])
@@ -62,7 +71,14 @@ export default function RepartidoresPage() {
       </header>
 
       <div className="card overflow-hidden">
-        {loading ? (
+        {loadError ? (
+          <div className="p-8 text-center space-y-3">
+            <p className="text-[var(--color-ink-muted)]">{loadError}</p>
+            <button onClick={loadRepartidores} className="btn-primary mx-auto">
+              Reintentar
+            </button>
+          </div>
+        ) : loading ? (
           <div className="p-5 space-y-3">
             {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
           </div>

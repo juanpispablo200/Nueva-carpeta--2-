@@ -1,5 +1,7 @@
 package com.jagoo.driver.notifications
 
+import com.jagoo.driver.BuildConfig
+
 import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -22,7 +24,6 @@ class DriverFirebaseMessagingService : FirebaseMessagingService() {
     private val tag = "DriverFCM"
 
     override fun onMessageReceived(message: RemoteMessage) {
-        Log.d(tag, "Mensaje FCM Driver: ${message.data}")
 
         val data    = message.data
         val title   = data["title"]    ?: message.notification?.title    ?: "Jagoo Driver"
@@ -32,7 +33,6 @@ class DriverFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     override fun onNewToken(token: String) {
-        Log.d(tag, "Nuevo token FCM Driver: ${token.take(20)}…")
         saveFcmToken(token)
     }
 
@@ -45,9 +45,8 @@ class DriverFirebaseMessagingService : FirebaseMessagingService() {
                     .update({ set("fcm_token", token) }) {
                         filter { eq("id", userId) }
                     }
-                Log.d(tag, "Token FCM Driver guardado")
             } catch (e: Exception) {
-                Log.w(tag, "No se pudo guardar el token FCM Driver: ${e.message}")
+                if (BuildConfig.DEBUG) Log.w(tag, "Operación fallida")
             }
         }
     }

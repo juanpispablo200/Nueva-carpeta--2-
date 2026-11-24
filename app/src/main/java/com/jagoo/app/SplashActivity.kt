@@ -15,7 +15,13 @@ class SplashActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        startActivity(Intent(this, MainActivity::class.java))
+        startActivity(
+            Intent(this, MainActivity::class.java).apply {
+                // Reenviar los extras de la notificación (order_id) y el deep link
+                intent?.extras?.let { putExtras(it) }
+                data = intent?.data
+            }
+        )
         finish()
     }
 }

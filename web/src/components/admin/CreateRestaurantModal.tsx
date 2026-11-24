@@ -11,6 +11,8 @@ export default function CreateRestaurantModal({ onClose, onSuccess }: Props) {
   const [form, setForm] = useState({
     name:          '',
     category:      '',
+    business_type: 'restaurante',
+    permit_number: '',
     description:   '',
     delivery_time: '30-45 min',
     delivery_fee:  2.50,
@@ -32,6 +34,8 @@ export default function CreateRestaurantModal({ onClose, onSuccess }: Props) {
       const { error } = await supabase.from('restaurants').insert({
         name:          form.name.trim(),
         category:      form.category.trim(),
+        business_type: form.business_type,
+        permit_number: form.permit_number.trim() || null,
         description:   form.description.trim(),
         delivery_time: form.delivery_time,
         delivery_fee:  form.delivery_fee,
@@ -68,6 +72,26 @@ export default function CreateRestaurantModal({ onClose, onSuccess }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
+          {/* Tipo de negocio */}
+          <div>
+            <label className="block text-xs font-semibold text-[var(--color-ink-sub)] uppercase tracking-wide mb-1.5">
+              Tipo de negocio *
+            </label>
+            <select value={form.business_type} onChange={e => set('business_type', e.target.value)} className="input cursor-pointer">
+              <option value="restaurante">Restaurante</option>
+              <option value="tienda">Tienda</option>
+              <option value="farmacia">Farmacia</option>
+              <option value="licoreria">Licorería (venta de alcohol, solo +18)</option>
+            </select>
+          </div>
+          {/* Número de permiso (opcional) */}
+          <div>
+            <label className="block text-xs font-semibold text-[var(--color-ink-sub)] uppercase tracking-wide mb-1.5">
+              Número de permiso (opcional)
+            </label>
+            <input value={form.permit_number} onChange={e => set('permit_number', e.target.value)}
+              placeholder="Permiso de funcionamiento / sanitario" className="input" />
+          </div>
           {/* Nombre */}
           <div>
             <label className="block text-xs font-semibold text-[var(--color-ink-sub)] uppercase tracking-wide mb-1.5">

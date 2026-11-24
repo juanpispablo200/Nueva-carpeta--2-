@@ -1,5 +1,7 @@
 package com.jagoo.driver.location
 
+import com.jagoo.driver.BuildConfig
+
 import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
@@ -68,7 +70,7 @@ class DriverLocationService : Service() {
     private fun startLocationUpdates() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
             != PackageManager.PERMISSION_GRANTED) {
-            Log.w(tag, "Sin permiso de ubicación, deteniendo servicio")
+            if (BuildConfig.DEBUG) Log.w(tag, "Operación fallida")
             stopSelf()
             return
         }
@@ -105,9 +107,8 @@ class DriverLocationService : Service() {
                         put("p_lng", lng)
                     }
                 )
-                Log.v(tag, "Ubicación publicada: $lat, $lng")
             } catch (e: Exception) {
-                Log.w(tag, "Error publicando ubicación: ${e.message}")
+                if (BuildConfig.DEBUG) Log.w(tag, "Operación fallida")
             }
         }
     }

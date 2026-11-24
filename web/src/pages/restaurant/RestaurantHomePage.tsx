@@ -157,10 +157,17 @@ export default function RestaurantHomePage() {
           {restaurant ? (
             <MenuEditor restaurantId={restaurant.id} />
           ) : (
-            <EmptyState icon={<BookOpen size={20}/>}
-              title="Sin restaurante vinculado"
-              description="Pide al administrador que vincule tu cuenta a un restaurante."
-            />
+            <div className="card p-8 text-center space-y-3">
+              <p className="text-4xl">🏪</p>
+              <p className="font-display font-bold text-[var(--color-ink)]">
+                Sin restaurante vinculado
+              </p>
+              <p className="text-sm text-[var(--color-ink-muted)]">
+                Tu cuenta aún no está vinculada a ningún restaurante.
+                Contacta al administrador en <strong>admin@jagoo.com</strong> para que
+                vincule tu usuario a tu local.
+              </p>
+            </div>
           )}
         </div>
       )}

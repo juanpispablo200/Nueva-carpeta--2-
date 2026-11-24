@@ -18,6 +18,9 @@ import com.jagoo.app.data.remote.OrderItemDto
 import com.jagoo.app.data.remote.RestaurantDto
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.put
 
 data class AddressItem(
     val id: String,
@@ -122,6 +125,13 @@ class SupabaseJagooRepository(
     override fun getRestaurants(): List<com.jagoo.app.data.Restaurant> =
         localRepo.getRestaurants()
 
+    /** Igual que getRestaurantsSuspend, pero lanza si no hay conexión (para no mostrar datos de ejemplo como si fueran reales). */
+    suspend fun getRestaurantsOrThrow(): List<com.jagoo.app.data.Restaurant> =
+        supabase.from("restaurants")
+            .select()
+            .decodeList<com.jagoo.app.data.remote.RestaurantDto>()
+            .map { it.toRestaurant() }
+
     suspend fun getRestaurantsSuspend(): List<com.jagoo.app.data.Restaurant> = try {
         supabase.from("restaurants")
             .select()
@@ -187,36 +197,52 @@ class SupabaseJagooRepository(
 
     override fun saveOrder(order: com.jagoo.app.data.ActiveOrder) = localRepo.saveOrder(order)
 
-    suspend fun saveOrderSuspend(
-        order: com.jagoo.app.data.ActiveOrder,
-        cartItems: List<com.jagoo.app.data.CartItem>,
-        deliveryAddress: String
-    ) {
-        val userId = supabase.auth.currentUserOrNull()?.id ?: return
-        try {
-            val dto = com.jagoo.app.data.remote.OrderDto(
-                customerId = userId, restaurantId = order.restaurantId,
-                restaurantName = order.restaurantName,
-                restaurantLogoUrl = order.restaurantLogoUrl,
-                subtotal = order.subtotal, deliveryFee = order.deliveryFee,
-                total = order.total, status = "pending",
-                deliveryAddress = deliveryAddress
-            )
-            val inserted = supabase.from("orders")
-                .insert(dto) { select() }
-                .decodeSingle<com.jagoo.app.data.remote.OrderDto>()
-
-            val items = cartItems.map { item ->
-                com.jagoo.app.data.remote.OrderItemDto(
-                    orderId = inserted.id, dishId = item.dish.id,
-                    dishName = item.dish.name, unitPrice = item.unitPrice,
-                    quantity = item.quantity,
-                    specialInstructions = item.specialInstructions
-                )
-            }
-            supabase.from("order_items").insert(items)
-            localRepo.saveOrder(order)
-        } catch (e: Exception) { localRepo.saveOrder(order) }
+    /**
+     * Crea el pedido en el servidor (RPC create_order). El servidor valida
+     * productos, precios, mínimo, zona, edad y receta, calcula el total y el
+     * reparto, y devuelve el uuid REAL del pedido. Lanza una excepción cuyo
+     * mensaje contiene un código estable (ver OrderErrors).
+     */
+    suspend fun createOrderSuspend(
+        restaurantId: String,
+        items: List<com.jagoo.app.data.CartItem>,
+        deliveryAddress: String,
+        zoneId: String?,
+        paymentMethod: String,
+        cashTendered: Double?,
+        couponCode: String?,
+        prescriptionPath: String?
+    ): com.jagoo.app.data.remote.CreateOrderResponse {
+        val params = kotlinx.serialization.json.buildJsonObject {
+            put("p_restaurant_id", restaurantId)
+            put("p_items", kotlinx.serialization.json.buildJsonArray {
+                items.forEach { item ->
+                    add(kotlinx.serialization.json.buildJsonObject {
+                        put("dish_id", item.dish.id)
+                        put("quantity", item.quantity)
+                        put("unit_price", item.unitPrice)
+                        put("special_instructions", item.specialInstructions)
+                        put("selected_options_json", kotlinx.serialization.json.buildJsonArray {
+                            item.selectedOptions.forEach { o ->
+                                add(kotlinx.serialization.json.buildJsonObject {
+                                    put("optionGroupId", o.optionGroupId)
+                                    put("optionName", o.optionName)
+                                    put("optionPrice", o.optionPrice)
+                                })
+                            }
+                        })
+                    })
+                }
+            })
+            put("p_delivery_address", deliveryAddress)
+            put("p_zone_id", zoneId)
+            put("p_payment_method", paymentMethod)
+            put("p_cash_tendered", cashTendered)
+            put("p_coupon_code", couponCode)
+            put("p_prescription_path", prescriptionPath)
+        }
+        return supabase.postgrest.rpc("create_order", params)
+            .decodeAs<com.jagoo.app.data.remote.CreateOrderResponse>()
     }
 
     override fun getOrderHistory(): List<com.jagoo.app.data.ActiveOrder> =

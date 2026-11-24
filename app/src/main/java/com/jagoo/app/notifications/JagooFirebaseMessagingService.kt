@@ -1,5 +1,7 @@
 package com.jagoo.app.notifications
 
+import com.jagoo.app.BuildConfig
+
 import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -26,7 +28,6 @@ class JagooFirebaseMessagingService : FirebaseMessagingService() {
     private val tag = "JagooFCM"
 
     override fun onMessageReceived(message: RemoteMessage) {
-        Log.d(tag, "Mensaje recibido de FCM: ${message.data}")
 
         val data     = message.data
         val type     = data["type"]     ?: "order_status"
@@ -50,7 +51,6 @@ class JagooFirebaseMessagingService : FirebaseMessagingService() {
      * notificaciones dirigidas a este usuario.
      */
     override fun onNewToken(token: String) {
-        Log.d(tag, "Nuevo token FCM: ${token.take(20)}…")
         saveFcmToken(token)
     }
 
@@ -63,9 +63,8 @@ class JagooFirebaseMessagingService : FirebaseMessagingService() {
                     .update({ set("fcm_token", token) }) {
                         filter { eq("id", userId) }
                     }
-                Log.d(tag, "Token FCM guardado en profiles")
             } catch (e: Exception) {
-                Log.w(tag, "No se pudo guardar el token FCM: ${e.message}")
+                if (BuildConfig.DEBUG) Log.w(tag, "Operación fallida")
             }
         }
     }

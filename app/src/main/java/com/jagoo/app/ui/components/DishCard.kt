@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.Role
 import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
 import com.jagoo.app.data.Dish
@@ -161,22 +162,29 @@ fun DishCard(
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
-                                .scale(buttonScale)
-                                .size(32.dp)
+                                .size(48.dp)
                                 .clip(CircleShape)
-                                .background(JagooYellow)
-                                .clickable {
+                                .clickable(role = Role.Button) {
                                     isPressed = true
                                     onAddToCart()
                                     isPressed = false
                                 }
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Agregar plato",
-                                tint = JagooTextPrimary,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .scale(buttonScale)
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(JagooYellow)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Agregar ${dish.name} al carrito",
+                                    tint = JagooTextPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
                 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Search, Star, Store, UserPlus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { Restaurant } from '../../lib/types'
+import { BUSINESS_LABEL } from '../../lib/types'
 import { StatusBadge, Skeleton, EmptyState, Input, SectionHeader } from '../ui'
 import CreateRestaurantModal from './CreateRestaurantModal'
 import CreateRestaurantUserModal from './CreateRestaurantUserModal'
@@ -22,6 +23,24 @@ export default function RestaurantsTable() {
   }
 
   useEffect(() => { load() }, [])
+
+  async function editBusiness(r: Restaurant) {
+    const types = ['restaurante', 'tienda', 'farmacia', 'licoreria']
+    const t = window.prompt(`Tipo de negocio (${types.join(', ')}):`, r.business_type ?? 'restaurante')
+    if (t === null) return
+    if (!types.includes(t.trim())) { window.alert('Tipo no válido.'); return }
+    const permit = window.prompt('Número de permiso (opcional, vacío para quitarlo):', r.permit_number ?? '')
+    if (permit === null) return
+    const { error } = await supabase.from('restaurants').update({ business_type: t.trim(), permit_number: permit.trim() || null }).eq('id', r.id)
+    if (error) { window.alert('No se pudo guardar: ' + error.message); return }
+    load()
+  }
+
+  async function toggleActive(r: Restaurant) {
+    const next = r.is_active === false
+    await supabase.from('restaurants').update({ is_active: next }).eq('id', r.id)
+    setRestaurants(prev => prev.map(x => x.id === r.id ? { ...x, is_active: next } : x))
+  }
 
   async function toggleOpen(r: Restaurant) {
     await supabase.from('restaurants').update({ is_open: !r.is_open }).eq('id', r.id)
@@ -88,7 +107,11 @@ export default function RestaurantsTable() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-[var(--color-ink-muted)]">{r.category}</td>
+                    <td className="px-4 py-3 text-[var(--color-ink-muted)]">
+                      <span className="font-semibold">{BUSINESS_LABEL[r.business_type ?? 'restaurante']}</span> {r.category}
+                      {r.permit_number && <span className="block text-xs text-[var(--color-ink-sub)]">Permiso: {r.permit_number}</span>}
+                      {r.is_active === false && <span className="block text-xs font-semibold text-red-600">Desactivado</span>}
+                    </td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center gap-1 font-semibold text-[var(--color-ink)]">
                         <Star size={14} className="text-amber-500" />
@@ -108,6 +131,14 @@ export default function RestaurantsTable() {
                         className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-brand-700)] hover:underline whitespace-nowrap">
                         <UserPlus size={13} />
                         {r.owner_id ? 'Cambiar usuario' : 'Crear usuario'}
+                      </button>
+                      <button onClick={() => editBusiness(r)}
+                        className="mt-1 block text-xs font-medium text-[var(--color-brand-700)] hover:underline whitespace-nowrap">
+                        Editar tipo y permiso
+                      </button>
+                      <button onClick={() => toggleActive(r)}
+                        className="mt-1 text-xs font-medium text-[var(--color-ink-muted)] hover:underline whitespace-nowrap">
+                        {r.is_active === false ? 'Activar negocio' : 'Desactivar negocio'}
                       </button>
                     </td>
                   </tr>

@@ -3,17 +3,17 @@ import { X, UserPlus, AlertCircle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 interface Props {
-  onClose: () => void
+  onClose:   () => void
   onSuccess: () => void
 }
 
 export default function CreateCourierModal({ onClose, onSuccess }: Props) {
-  const [email, setEmail] = useState('')
+  const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [phone,    setPhone]    = useState('')
+  const [loading,  setLoading]  = useState(false)
+  const [error,    setError]    = useState('')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -21,40 +21,31 @@ export default function CreateCourierModal({ onClose, onSuccess }: Props) {
     setLoading(true)
 
     try {
-      // Crear usuario usando la función SQL segura
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { full_name: fullName, role: 'repartidor' }
+      // Obtener token de la sesión actual del admin
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('No hay sesión activa')
+
+      // Llamar a la Edge Function — la sesión del admin NO cambia
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
+        {
+          method:  'POST',
+          headers: {
+            'Content-Type':  'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            email:     email.trim().toLowerCase(),
+            password,
+            full_name: fullName.trim(),   // ← nombre del formulario, no del admin
+            phone:     phone.trim() || undefined,
+            role:      'repartidor',
+          }),
         }
-      })
+      )
 
-      if (authError) {
-        if (authError.message.includes('already registered')) throw new Error('Este email ya está registrado')
-        throw authError
-      }
-      if (!authData.user) throw new Error('No se pudo crear el usuario')
-
-      // Esperar brevemente
-      await new Promise(r => setTimeout(r, 300))
-
-      // Usar la función SECURITY DEFINER para insertar el perfil
-      const { error: fnError } = await supabase.rpc('create_courier_profile', {
-        p_id:        authData.user.id,
-        p_full_name: fullName,
-        p_phone:     phone || null,
-        p_email:     email
-      })
-
-      if (fnError) {
-        // Fallback: intentar insert directo sin email
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .upsert({ id: authData.user.id, full_name: fullName, phone: phone || null, role: 'repartidor', is_active: true })
-
-        if (insertError) throw new Error('No se pudo crear el perfil. Verifica permisos en Supabase.')
-      }
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error ?? 'Error al crear el repartidor')
 
       onSuccess()
       onClose()
@@ -68,7 +59,6 @@ export default function CreateCourierModal({ onClose, onSuccess }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in">
       <div className="card w-full max-w-md p-6 animate-in">
-        {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-[var(--radius-md)] bg-[var(--color-brand-100)] flex items-center justify-center">
@@ -87,39 +77,40 @@ export default function CreateCourierModal({ onClose, onSuccess }: Props) {
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-[var(--color-ink-sub)] uppercase tracking-wide mb-1.5">
-              Nombre completo
+              Nombre completo *
             </label>
             <input
               type="text"
               required
               value={fullName}
               onChange={e => setFullName(e.target.value)}
-              placeholder="Juan Pérez"
+              placeholder="Pedro García"
               className="input"
+              autoComplete="off"
             />
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-[var(--color-ink-sub)] uppercase tracking-wide mb-1.5">
-              Email
+              Email *
             </label>
             <input
               type="email"
               required
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder="juan@example.com"
+              placeholder="pedro@example.com"
               className="input"
+              autoComplete="off"
             />
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-[var(--color-ink-sub)] uppercase tracking-wide mb-1.5">
-              Contraseña
+              Contraseña *
             </label>
             <input
               type="password"
@@ -140,40 +131,29 @@ export default function CreateCourierModal({ onClose, onSuccess }: Props) {
               type="tel"
               value={phone}
               onChange={e => setPhone(e.target.value)}
-              placeholder="+57 300 123 4567"
+              placeholder="+593 99 123 4567"
               className="input"
             />
           </div>
 
           {error && (
-            <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-[var(--radius-md)] px-3 py-2.5">
+            <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-[var(--radius-md)] px-3 py-2.5" role="alert">
               <AlertCircle size={15} className="shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
           <div className="flex gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-ghost flex-1 justify-center"
-              disabled={loading}
-            >
+            <button type="button" onClick={onClose} className="btn-ghost flex-1 justify-center" disabled={loading}>
               Cancelar
             </button>
-            <button
-              type="submit"
-              className="btn-primary flex-1 justify-center"
-              disabled={loading}
-            >
+            <button type="submit" className="btn-primary flex-1 justify-center" disabled={loading}>
               {loading ? (
                 <span className="flex items-center gap-2">
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   Creando…
                 </span>
-              ) : (
-                'Crear repartidor'
-              )}
+              ) : 'Crear repartidor'}
             </button>
           </div>
         </form>

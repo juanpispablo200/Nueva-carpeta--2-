@@ -3,6 +3,8 @@
  * Ruta: /privacy
  * Requerida por Google Play Console y App Store.
  */
+import { Link } from 'react-router-dom'
+import { SUPPORT_EMAIL } from '../lib/contact'
 
 export default function PrivacyPolicyPage() {
   return (
@@ -39,6 +41,9 @@ export default function PrivacyPolicyPage() {
               <li>Número de teléfono (opcional, para coordinar entregas)</li>
               <li>Dirección de entrega (para procesar pedidos)</li>
               <li>Comprobantes de pago (imágenes de transferencias bancarias)</li>
+              <li><strong>Fecha de nacimiento</strong> (solo si pides productos para mayores de 18): se registra una sola vez y se usa únicamente para comprobar que eres mayor de edad.</li>
+              <li><strong>Foto de la receta médica</strong> (solo si pides medicamentos con receta): la ve únicamente el negocio al que le pides y el administrador de Jagoo. Es un dato sensible de salud.</li>
+              <li>Monto con el que pagas en efectivo (para preparar el cambio)</li>
             </ul>
           </SubSection>
           <SubSection title="1.2 Información que recopilamos automáticamente">
@@ -60,6 +65,9 @@ export default function PrivacyPolicyPage() {
             <li>Procesar, preparar y entregar tus pedidos</li>
             <li>Enviarte notificaciones push sobre el estado de tu pedido (confirmación, en camino, entregado)</li>
             <li>Verificar comprobantes de pago por transferencia bancaria</li>
+            <li>Confirmar tu mayoría de edad al pedir bebidas alcohólicas y permitir que el repartidor verifique tu cédula al entregar</li>
+            <li>Que la farmacia revise tu receta antes de aceptar el pedido</li>
+            <li>Preparar el cambio de un pago en efectivo</li>
             <li>Mostrar al cliente la ubicación del repartidor en tiempo real durante la entrega</li>
             <li>Mejorar el servicio mediante análisis de uso agregado y anónimo</li>
             <li>Contactarte si hay un problema con tu pedido</li>
@@ -119,7 +127,7 @@ export default function PrivacyPolicyPage() {
           <p>Jagoo <strong>no vende</strong> tu información personal. Solo la compartimos con:</p>
           <ul>
             <li>
-              <strong>Restaurantes:</strong> nombre y dirección para preparar y entregar tu pedido
+              <strong>Negocios (restaurantes, tiendas, farmacias y licorerías):</strong> nombre y dirección para preparar y entregar tu pedido
             </li>
             <li>
               <strong>Repartidores:</strong> dirección de entrega y nombre para completar la entrega
@@ -152,25 +160,35 @@ export default function PrivacyPolicyPage() {
           <ul>
             <li><strong>Acceso:</strong> solicitar una copia de tus datos personales</li>
             <li><strong>Corrección:</strong> actualizar datos incorrectos desde la app (Perfil)</li>
-            <li><strong>Eliminación:</strong> solicitar la eliminación de tu cuenta y datos</li>
+            <li>
+              <strong>Eliminación:</strong> eliminar tu cuenta desde la app (Perfil → Eliminar mi
+              cuenta) o solicitarlo en{' '}
+              <Link to="/delete-account" className="text-[#1A6B3C] underline">/delete-account</Link>.
+              Los pedidos pasados se conservan anonimizados por obligación contable.
+            </li>
             <li><strong>Portabilidad:</strong> solicitar tus datos en formato legible por máquina</li>
             <li><strong>Oposición:</strong> oponerte al procesamiento de tus datos para marketing</li>
           </ul>
           <p className="mt-2">
             Para ejercer cualquiera de estos derechos, contáctanos en{' '}
-            <a href="mailto:privacidad@jagoo.com" className="text-[#1A6B3C] underline">
-              privacidad@jagoo.com
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-[#1A6B3C] underline">
+              {SUPPORT_EMAIL}
             </a>
           </p>
         </Section>
 
         {/* 9 */}
         <Section title="9. Retención de datos">
+          <p>Un proceso automático diario aplica estos plazos:</p>
           <ul>
-            <li>Datos de cuenta: mientras la cuenta esté activa</li>
-            <li>Historial de pedidos: 2 años desde la fecha del pedido</li>
-            <li>Comprobantes de pago: 1 año por requisitos contables</li>
-            <li>Tokens push: se eliminan automáticamente si el dispositivo deja de usarlos</li>
+            <li>Datos de cuenta (incluida la fecha de nacimiento): mientras la cuenta esté activa; se borran al eliminarla.</li>
+            <li><strong>Fotos de recetas:</strong> se borran 30 días después de que el pedido se entrega o se cancela.</li>
+            <li><strong>Fotos de comprobantes de pago:</strong> se borran 365 días después de subirse.</li>
+            <li><strong>Datos personales de los pedidos</strong> (cliente, dirección, notas): se anonimizan a los 730 días (2 años).</li>
+            <li>Importes, fechas y reparto de los pedidos: se conservan sin datos personales por obligación contable y fiscal (el plazo legal exacto está pendiente de confirmación con un contador).</li>
+            <li>Historial de notificaciones: 90 días.</li>
+            <li>Última ubicación conocida del repartidor: 24 horas.</li>
+            <li>Tokens push: se eliminan automáticamente si el dispositivo deja de usarlos.</li>
           </ul>
         </Section>
 
@@ -198,8 +216,8 @@ export default function PrivacyPolicyPage() {
           <ul>
             <li>
               Email:{' '}
-              <a href="mailto:privacidad@jagoo.com" className="text-[#1A6B3C] underline">
-                privacidad@jagoo.com
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="text-[#1A6B3C] underline">
+                {SUPPORT_EMAIL}
               </a>
             </li>
             <li>Respuesta en un plazo máximo de 30 días hábiles</li>

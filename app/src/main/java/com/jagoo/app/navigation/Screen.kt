@@ -24,9 +24,6 @@ sealed class Screen(val route: String) {
     object PaymentInstructions : Screen("payment/{orderId}/{total}") {
         fun createRoute(orderId: String, total: Double) = "payment/$orderId/$total"
     }
-    object KushkiPayment : Screen("payment/card/{orderId}/{total}") {
-        fun createRoute(orderId: String, total: Double) = "payment/card/$orderId/$total"
-    }
     object Rating : Screen("rating/{orderId}/{restaurantName}/{courierName}") {
         fun createRoute(orderId: String, restaurantName: String, courierName: String) =
             "rating/${orderId}/${restaurantName.encodeRouteParam()}/${courierName.encodeRouteParam()}"

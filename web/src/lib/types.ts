@@ -33,6 +33,19 @@ export interface Order {
   courier_id:           string | null
   created_at:           string
   items?:               OrderItem[]
+  payment_method?:      'cash' | 'transfer'
+  payment_status?:      'pending' | 'verifying' | 'verified' | 'rejected'
+  cash_tendered?:       number | null
+  change_due?:          number | null
+  business_type?:       BusinessType
+  prescription_required?: boolean
+  prescription_status?: 'none' | 'pending' | 'approved' | 'rejected'
+  prescription_path?:   string | null
+  age_check_required?:  boolean
+  age_verified_at?:     string | null
+  business_amount?:     number | null
+  driver_amount?:       number | null
+  platform_amount?:     number | null
 }
 
 export interface Dish {
@@ -48,6 +61,10 @@ export interface Dish {
   is_popular:      boolean
   is_offer:        boolean
   offer_badge:     string | null
+  /** Solo farmacias: el producto exige receta. Si es false, es de venta libre. */
+  requires_prescription?: boolean
+  /** Lo fija el servidor: todo producto de una licorería es +18. */
+  is_age_restricted?: boolean
 }
 
 export interface Restaurant {
@@ -66,6 +83,22 @@ export interface Restaurant {
   is_open:       boolean
   is_featured:   boolean
   owner_id:      string | null
+  business_type: BusinessType
+  permit_number: string | null
+  is_active:     boolean
+}
+
+export type BusinessType = 'restaurante' | 'tienda' | 'farmacia' | 'licoreria'
+
+export const BUSINESS_TYPES: { key: BusinessType; label: string }[] = [
+  { key: 'restaurante', label: 'Restaurante' },
+  { key: 'tienda',      label: 'Tienda' },
+  { key: 'farmacia',    label: 'Farmacia' },
+  { key: 'licoreria',   label: 'Licorer\u00eda' },
+]
+
+export const BUSINESS_LABEL: Record<BusinessType, string> = {
+  restaurante: 'Restaurante', tienda: 'Tienda', farmacia: 'Farmacia', licoreria: 'Licorer\u00eda',
 }
 
 export interface Profile {

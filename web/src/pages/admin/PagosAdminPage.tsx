@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { CheckCircle, XCircle, Eye, Clock, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { signedUrl } from '../../lib/storage'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../components/common/ToastContext'
 import { EmptyState, Skeleton, SectionHeader } from '../../components/ui'
@@ -205,7 +206,7 @@ export default function PagosAdminPage() {
                     {/* Ver comprobante */}
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => setPreviewUrl(p.image_url)}
+                        onClick={async () => setPreviewUrl(await signedUrl('payment-proofs', p.image_url))}
                         className="flex items-center gap-1 text-xs font-medium text-[var(--color-brand-700)] hover:underline"
                       >
                         <Eye size={12} /> Ver

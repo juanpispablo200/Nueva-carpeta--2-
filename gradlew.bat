@@ -21,7 +21,6 @@
 @rem ##########################################################################
 
 @rem Set local scope for the variables with windows NT command extensions
-if "%EXTRA_VERBOSE%" == "" option explicit
 
 set DIRNAME=%~dp0
 if "%DIRNAME%" == "" set DIRNAME=.
@@ -67,4 +66,5 @@ if  not "" == "%GRADLE_EXIT_CONSOLE%" exit 1
 exit /b 1
 
 :mainEnd
-if "%ERRORLEVEL%"=="0" finish
+if "%ERRORLEVEL%"=="0" exit /b 0
+exit /b 1

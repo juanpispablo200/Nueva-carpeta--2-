@@ -7,6 +7,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,6 +34,7 @@ fun FilterChip(
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
+            .minimumInteractiveComponentSize()
             .clip(CircleShape)
             .background(if (isSelected) JagooYellow else JagooCardWhite)
             .border(
@@ -37,7 +42,8 @@ fun FilterChip(
                 color = if (isSelected) Color.Transparent else JagooGreen.copy(alpha = 0.3f),
                 shape = CircleShape
             )
-            .clickable { onClick() }
+            .clickable(role = Role.Button) { onClick() }
+            .semantics { selected = isSelected }
             .padding(horizontal = 14.dp, vertical = 6.dp)
     ) {
         Text(

@@ -65,6 +65,10 @@ import com.jagoo.app.ui.theme.JagooYellow
 import com.jagoo.app.ui.theme.PillShape
 import com.jagoo.app.ui.theme.PoppinsFontFamily
 import com.jagoo.app.viewmodel.AuthViewModel
+import com.jagoo.app.viewmodel.DeleteAccountState
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import com.jagoo.app.viewmodel.ProductViewModel
 
 @Composable
@@ -73,8 +77,94 @@ fun ProfileScreen(
     authViewModel: AuthViewModel,
     onNavigateToAddresses: () -> Unit = {},
     onNavigateToHistory: () -> Unit = {},
-    onLogout: () -> Unit = {}
+    onLogout: () -> Unit = {},
+    onAccountDeleted: () -> Unit = {}
 ) {
+    val deleteState by authViewModel.deleteState.collectAsState()
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var deleteConfirmText by remember { mutableStateOf("") }
+
+    LaunchedEffect(deleteState) {
+        if (deleteState is DeleteAccountState.Done) {
+            showDeleteDialog = false
+            authViewModel.resetDeleteState()
+            onAccountDeleted()
+        }
+    }
+
+    if (showDeleteDialog) {
+        val loading = deleteState is DeleteAccountState.Loading
+        AlertDialog(
+            onDismissRequest = {
+                if (!loading) {
+                    showDeleteDialog = false
+                    deleteConfirmText = ""
+                    authViewModel.resetDeleteState()
+                }
+            },
+            title = {
+                Text("Eliminar mi cuenta", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        "Esta acción es permanente y no se puede deshacer.",
+                        fontFamily = PoppinsFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 14.sp
+                    )
+                    Text(
+                        "Se borrará: tu perfil, direcciones, favoritos, comprobantes de pago subidos y tu historial de notificaciones.",
+                        fontFamily = PoppinsFontFamily, fontSize = 13.sp
+                    )
+                    Text(
+                        "Se conservará sin tus datos personales: los pedidos pasados (por obligación contable), sin nombre, dirección ni notas.",
+                        fontFamily = PoppinsFontFamily, fontSize = 13.sp
+                    )
+                    Text(
+                        "Escribe ELIMINAR para confirmar:",
+                        fontFamily = PoppinsFontFamily, fontSize = 13.sp
+                    )
+                    OutlinedTextField(
+                        value = deleteConfirmText,
+                        onValueChange = { deleteConfirmText = it },
+                        singleLine = true,
+                        enabled = !loading,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    (deleteState as? DeleteAccountState.Error)?.let {
+                        Text(it.message, color = JagooRed, fontFamily = PoppinsFontFamily, fontSize = 13.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { authViewModel.deleteAccount() },
+                    enabled = !loading && deleteConfirmText.trim().equals("ELIMINAR", ignoreCase = true),
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                ) {
+                    if (loading) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = JagooRed)
+                    } else {
+                        Text("Eliminar definitivamente", color = JagooRed, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        deleteConfirmText = ""
+                        authViewModel.resetDeleteState()
+                    },
+                    enabled = !loading,
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                ) { Text("Cancelar", fontFamily = PoppinsFontFamily) }
+            }
+        )
+    }
+
     val favIds      by productViewModel.favoriteRestaurantIds.collectAsState()
     val primaryAddr  = productViewModel.getPrimaryAddress()
 
@@ -251,7 +341,7 @@ fun ProfileScreen(
                     ProfileMenuItem(
                         icon     = Icons.Default.CreditCard,
                         title    = "Métodos de Pago",
-                        subtitle = "Efectivo / Transferencia / Tarjeta",
+                        subtitle = "Efectivo / Transferencia",
                         onClick  = {}
                     )
                     ProfileMenuItem(
@@ -282,6 +372,22 @@ fun ProfileScreen(
                     fontWeight = FontWeight.Bold,
                     fontSize   = 15.sp,
                     color      = Color.White
+                )
+            }
+
+            com.jagoo.app.ui.components.LegalLinks()
+
+            // ── Eliminar cuenta ───────────────────────────────────────────
+            TextButton(
+                onClick  = { deleteConfirmText = ""; authViewModel.resetDeleteState(); showDeleteDialog = true },
+                modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp)
+            ) {
+                Text(
+                    text       = "Eliminar mi cuenta",
+                    fontFamily = PoppinsFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize   = 14.sp,
+                    color      = JagooRed
                 )
             }
         }

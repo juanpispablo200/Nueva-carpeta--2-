@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Jagoo Driver — Ícono monocromático (íconos con tema, Android 13+): misma silueta, un solo color -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Círculo de fondo amarillo -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M54,16 C32.5,16 15,33.5 15,55 C15,76.5 32.5,94 54,94 C75.5,94 93,76.5 93,55 C93,33.5 75.5,16 54,16Z"/>
+
+    <!-- Moto cuerpo -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M32,58 L36,49 L53,49 L57,45 L70,45 L74,49 L76,58 L71,60 L37,60 Z"/>
+
+    <!-- Rueda trasera -->
+    <path android:fillColor="#FF000000"
+        android:pathData="M37,60 A8,8 0 1,0 37.01,60 Z"/>
+    <path android:fillColor="#FF000000"
+        android:pathData="M37,60 A4.5,4.5 0 1,0 37.01,60 Z"/>
+
+    <!-- Rueda delantera -->
+    <path android:fillColor="#FF000000"
+        android:pathData="M71,60 A8,8 0 1,0 71.01,60 Z"/>
+    <path android:fillColor="#FF000000"
+        android:pathData="M71,60 A4.5,4.5 0 1,0 71.01,60 Z"/>
+
+    <!-- Casco grande -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M55,45 L55,37 Q55,30 62,30 Q69,30 69,37 L69,45 Z"/>
+    <!-- Visor -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M56,40 L68,40 L68,43 L56,43 Z"/>
+
+    <!-- Letra D (Driver) -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M34,33 L38,33 Q44,33 44,39 Q44,45 38,45 L34,45 Z M36,35 L36,43 L38,43 Q42,43 42,39 Q42,35 38,35 Z"/>
+</vector>

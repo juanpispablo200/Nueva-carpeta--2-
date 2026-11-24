@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ShoppingBag, Bike, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
@@ -11,6 +11,7 @@ import { useToast } from '../../components/common/ToastContext'
 
 const PAGE_SIZE = 20
 const ALL_STATUSES: OrderStatus[] = ['pending','accepted','preparing','ready','on_the_way','delivered','cancelled']
+const DEBOUNCE_MS = 350
 
 interface OrderWithCourier extends Order {
   courier_id:   string | null
@@ -25,6 +26,8 @@ export default function PedidosAdminPage() {
   const [restaurants,  setRestaurants]  = useState<Restaurant[]>([])
   const [couriers,     setCouriers]     = useState<Profile[]>([])
   const [assignOrder,  setAssignOrder]  = useState<OrderWithCourier | null>(null)
+  const [searchInput,  setSearchInput]  = useState(params.get('q') ?? '')
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const toast = useToast()
 
   // ── Filtros desde URL ──────────────────────────────────────────────────────
@@ -87,8 +90,16 @@ export default function PedidosAdminPage() {
       {/* ── Filtros ─────────────────────────────────────────────────────── */}
       <div className="card p-4 mb-4">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {/* Búsqueda */}
-          <input value={search} onChange={e => setFilter('q', e.target.value)}
+          {/* Búsqueda con debounce */}
+          <input
+            value={searchInput}
+            onChange={e => {
+              setSearchInput(e.target.value)
+              if (debounceRef.current) clearTimeout(debounceRef.current)
+              debounceRef.current = setTimeout(() => {
+                setFilter('q', e.target.value)
+              }, DEBOUNCE_MS)
+            }}
             placeholder="ID, cliente, restaurante…"
             className="input lg:col-span-2 text-sm" />
 
@@ -156,7 +167,12 @@ export default function PedidosAdminPage() {
                     <tr key={o.id} className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-bg)] transition-colors">
                       <td className="px-4 py-3 font-mono text-xs text-[var(--color-ink-sub)]">{o.id.slice(0,8)}…</td>
                       <td className="px-4 py-3 font-medium text-[var(--color-ink)] max-w-[160px] truncate">{o.restaurant_name}</td>
-                      <td className="px-4 py-3 font-semibold text-[var(--color-ink)]">${o.total.toFixed(2)}</td>
+                      <td className="px-4 py-3 font-semibold text-[var(--color-ink)]">${o.total.toFixed(2)}
+                        <span className="block text-xs font-normal text-[var(--color-ink-sub)]">
+                          {o.payment_method === 'cash' ? 'Efectivo' : 'Transferencia'}
+                          {o.business_amount != null && ` · Negocio $${o.business_amount.toFixed(2)} · Driver $${(o.driver_amount ?? 0).toFixed(2)} · Plataforma $${(o.platform_amount ?? 0).toFixed(2)}`}
+                        </span>
+                      </td>
                       <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
                       <td className="px-4 py-3">
                         {courier ? (

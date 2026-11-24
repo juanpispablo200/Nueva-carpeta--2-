@@ -93,7 +93,7 @@ fun PromoBanner() {
 
             AsyncImage(
                 model = "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=500",
-                contentDescription = "Bananas Promo",
+                contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.size(110.dp)
             )

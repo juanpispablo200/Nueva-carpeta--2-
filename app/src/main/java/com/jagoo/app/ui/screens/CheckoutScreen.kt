@@ -58,6 +58,24 @@ import com.jagoo.app.ui.theme.JagooTextPrimary
 import com.jagoo.app.ui.theme.JagooYellow
 import com.jagoo.app.ui.theme.PillShape
 import com.jagoo.app.ui.theme.PoppinsFontFamily
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.KeyboardType
+import com.jagoo.app.data.CashRules
+import com.jagoo.app.ui.components.ErrorCard
+import com.jagoo.app.ui.components.NoticeCard
+import com.jagoo.app.viewmodel.OrderPlacement
 import com.jagoo.app.viewmodel.CartViewModel
 import com.jagoo.app.viewmodel.ProductViewModel
 
@@ -71,8 +89,7 @@ fun CheckoutScreen(
     cartViewModel: CartViewModel,
     productViewModel: ProductViewModel,
     onBackClick: () -> Unit,
-    onOrderConfirmed: (orderId: String, total: Double) -> Unit,
-    onPayWithCard: (orderId: String, total: Double) -> Unit = { _, _ -> }
+    onOrderPlaced: (orderId: String, total: Double, isTransfer: Boolean) -> Unit
 ) {
     val cartItems by cartViewModel.cartItems.collectAsState()
     val subtotal  = cartViewModel.getSubtotal()
@@ -98,8 +115,47 @@ fun CheckoutScreen(
         }
     }
 
-    // Método de pago hardcodeado por ahora (Fase 3)
-    val paymentMethod = "Efectivo al recibir"
+    // Método de pago: efectivo o transferencia
+    var paymentMethod by rememberSaveable { mutableStateOf("cash") }
+    var cashText by rememberSaveable { mutableStateOf("") }
+    val tendered = CashRules.parseAmount(cashText)
+    val change = tendered?.let { CashRules.change(total, it) }
+    val cashError = paymentMethod == "cash" && cashText.isNotBlank() && change == null
+
+    val orderState     by cartViewModel.orderState.collectAsState()
+    val zones          by cartViewModel.zones.collectAsState()
+    val selectedZone   by cartViewModel.selectedZone.collectAsState()
+    val minOrder       by cartViewModel.minOrder.collectAsState()
+    val prescriptionUri by cartViewModel.prescriptionUri.collectAsState()
+
+    val needsPrescription = cartViewModel.cartRequiresPrescription
+    val hasAgeRestricted  = cartViewModel.cartHasAgeRestricted
+    val belowMinimum      = subtotal < minOrder
+    val zoneMissing       = zones.isNotEmpty() && selectedZone == null
+    val loading           = orderState is OrderPlacement.Loading
+
+    val prescriptionPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri -> if (uri != null) cartViewModel.setPrescriptionUri(uri) }
+
+    LaunchedEffect(Unit) {
+        cartViewModel.resetOrderState()
+        cartViewModel.loadCheckoutConfig()
+    }
+
+    // Pedido creado: se usa el id REAL que devolvió el servidor
+    LaunchedEffect(orderState) {
+        val state = orderState
+        if (state is OrderPlacement.Placed) {
+            onOrderPlaced(state.order.id, state.order.total, state.order.paymentMethod == "transfer")
+            cartViewModel.resetOrderState()
+        }
+    }
+
+    val canConfirm = primaryAddress != null && cartItems.isNotEmpty() && !loading &&
+        !belowMinimum && !zoneMissing &&
+        (paymentMethod == "transfer" || (tendered != null && change != null)) &&
+        (!needsPrescription || prescriptionUri != null)
 
     Column(
         modifier = Modifier
@@ -117,7 +173,7 @@ fun CheckoutScreen(
             IconButton(
                 onClick = onBackClick,
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(Color.White)
             ) {
@@ -221,6 +277,40 @@ fun CheckoutScreen(
                 }
             }
 
+            // ── Zona de entrega (si el admin configuró zonas) ─────────────────
+            if (zones.isNotEmpty()) {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = JagooCardWhite),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp).selectableGroup()) {
+                        Text(
+                            text = "Zona de entrega",
+                            fontFamily = PoppinsFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = JagooTextPrimary
+                        )
+                        zones.forEach { zone ->
+                            ChoiceRow(
+                                title = zone.name,
+                                subtitle = "Envío $${String.format("%.2f", zone.fee)}",
+                                selected = selectedZone?.id == zone.id,
+                                onSelect = { cartViewModel.selectZone(zone) }
+                            )
+                        }
+                        if (zoneMissing) {
+                            Text(
+                                text = "Elige tu zona para ver el costo de envío.",
+                                fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = JagooRed
+                            )
+                        }
+                    }
+                }
+            }
+
             // ── Método de pago ────────────────────────────────────────────────
             Card(
                 shape = RoundedCornerShape(16.dp),
@@ -228,11 +318,11 @@ fun CheckoutScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Column(modifier = Modifier.padding(14.dp).selectableGroup()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.Payment,
-                            contentDescription = "Pago",
+                            contentDescription = null,
                             tint = JagooGreen,
                             modifier = Modifier.size(20.dp)
                         )
@@ -246,24 +336,85 @@ fun CheckoutScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    ChoiceRow(
+                        title = "Efectivo al recibir",
+                        subtitle = "Pagas al repartidor cuando llega tu pedido",
+                        selected = paymentMethod == "cash",
+                        onSelect = { paymentMethod = "cash" }
+                    )
+                    ChoiceRow(
+                        title = "Transferencia bancaria",
+                        subtitle = "Subes el comprobante y lo verificamos. Tienes 30 minutos para subirlo.",
+                        selected = paymentMethod == "transfer",
+                        onSelect = { paymentMethod = "transfer" }
+                    )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = paymentMethod,
-                            fontFamily = PoppinsFontFamily,
-                            fontSize = 13.sp,
-                            color = JagooTextMuted,
-                            modifier = Modifier.weight(1f)
+                    if (paymentMethod == "cash") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = cashText,
+                            onValueChange = { cashText = it.filter { ch -> ch.isDigit() || ch == '.' || ch == ',' }.take(8) },
+                            label = { Text("¿Con cuánto pagas?") },
+                            placeholder = { Text("Ej: 20.00") },
+                            prefix = { Text("$") },
+                            isError = cashError,
+                            supportingText = {
+                                when {
+                                    cashError -> Text("Debe ser al menos $${String.format("%.2f", total)} (el total del pedido).")
+                                    change != null -> Text("Tu cambio será $${String.format("%.2f", change)}.")
+                                    else -> Text("Escribe el billete con el que vas a pagar para que llevemos cambio.")
+                                }
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
                         )
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Seleccionado",
-                            tint = JagooGreen,
-                            modifier = Modifier.size(18.dp)
+                    }
+                }
+            }
+
+            // ── Avisos: edad y receta ─────────────────────────────────────────
+            if (hasAgeRestricted) {
+                NoticeCard(
+                    label = "Aviso de edad",
+                    message = "Este pedido incluye productos solo para mayores de 18 años. El repartidor te pedirá la cédula al entregar."
+                )
+            }
+            if (needsPrescription) {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = JagooCardWhite),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Receta médica",
+                            fontFamily = PoppinsFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = JagooTextPrimary
+                        )
+                        NoticeCard(
+                            label = "Aviso de receta",
+                            message = "Tu pedido tiene productos que requieren receta. La farmacia la revisará antes de aceptar el pedido. Si no la aprueba, el pedido se cancela."
+                        )
+                        OutlinedButton(
+                            onClick = { prescriptionPicker.launch("image/*") },
+                            shape = PillShape,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                        ) {
+                            Text(
+                                text = if (prescriptionUri == null) "Subir foto de la receta" else "Cambiar foto de la receta",
+                                fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, color = JagooGreen
+                            )
+                        }
+                        Text(
+                            text = if (prescriptionUri == null) "Falta la foto de la receta."
+                                   else "Receta seleccionada.",
+                            fontFamily = PoppinsFontFamily, fontSize = 12.sp,
+                            color = if (prescriptionUri == null) JagooRed else JagooGreen,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
                         )
                     }
                 }
@@ -459,53 +610,61 @@ fun CheckoutScreen(
                 }
             }
 
-            // ── Botones de pago ───────────────────────────────────────────────
-            Button(
-                onClick = {
-                    if (primaryAddress == null) return@Button
-                    cartViewModel.confirmOrder()
-                    val activeOrder = cartViewModel.activeOrder.value
-                    if (activeOrder != null) {
-                        onOrderConfirmed(activeOrder.id, activeOrder.total)
-                    }
-                },
-                shape = PillShape,
-                colors = ButtonDefaults.buttonColors(containerColor = JagooGreen),
-                enabled = primaryAddress != null && cartItems.isNotEmpty(),
-                modifier = Modifier.fillMaxWidth().height(52.dp)
-            ) {
-                Text(
-                    text = if (primaryAddress == null) "Configura una dirección primero"
-                           else "Pagar por Transferencia",
-                    fontFamily = PoppinsFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = Color.White
-                )
+            // ── Confirmar ─────────────────────────────────────────────────────
+            (orderState as? OrderPlacement.Failed)?.let { ErrorCard(message = it.error.message) }
+
+            if (belowMinimum) {
+                ErrorCard(message = "El pedido mínimo de este negocio es $${String.format("%.2f", minOrder)}. Agrega más productos.")
             }
 
             Button(
                 onClick = {
-                    if (primaryAddress == null) return@Button
-                    cartViewModel.confirmOrder()
-                    val activeOrder = cartViewModel.activeOrder.value
-                    if (activeOrder != null) {
-                        onPayWithCard(activeOrder.id, activeOrder.total)
-                    }
+                    if (!canConfirm) return@Button
+                    cartViewModel.placeOrder(paymentMethod, if (paymentMethod == "cash") tendered else null)
                 },
                 shape = PillShape,
-                colors = ButtonDefaults.buttonColors(containerColor = JagooYellow),
-                enabled = primaryAddress != null && cartItems.isNotEmpty(),
-                modifier = Modifier.fillMaxWidth().height(52.dp)
+                colors = ButtonDefaults.buttonColors(containerColor = JagooGreen),
+                enabled = canConfirm,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
             ) {
-                Text(
-                    text = "Pagar con Tarjeta (Kushki)",
-                    fontFamily = PoppinsFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = JagooGreen
-                )
+                if (loading) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Creando pedido…", color = Color.White, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold)
+                } else {
+                    Text(
+                        text = when {
+                            primaryAddress == null -> "Configura una dirección primero"
+                            paymentMethod == "transfer" -> "Confirmar y pagar por transferencia"
+                            else -> "Confirmar pedido"
+                        },
+                        fontFamily = PoppinsFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = Color.White
+                    )
+                }
             }
+        }
+    }
+}
+
+/** Opción seleccionable (radio) con área táctil de al menos 48dp. */
+@Composable
+private fun ChoiceRow(title: String, subtitle: String, selected: Boolean, onSelect: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .selectable(selected = selected, onClick = onSelect, role = Role.RadioButton)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Spacer(modifier = Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = JagooTextPrimary)
+            Text(subtitle, fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = JagooTextMuted)
         }
     }
 }

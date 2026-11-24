@@ -85,7 +85,7 @@ fun AddressesScreen(
             IconButton(
                 onClick = onBackClick,
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(Color.White)
             ) {

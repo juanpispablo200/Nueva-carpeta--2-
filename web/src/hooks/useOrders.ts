@@ -63,9 +63,10 @@ export function useOrders(restaurantId: string | null) {
           if (payload.eventType === 'INSERT') {
             const newOrder = payload.new as Order
             if (newOrder.status === 'pending') {
-              // Reproducir sonido
-              const audio = new Audio('/sounds/notification.mp3')
-              audio.play().catch(() => {}) // ignorar error si no hay permiso
+              try {
+                const audio = new Audio('/sounds/notification.wav')
+                audio.play().catch(() => {})
+              } catch (_) { /* Ignorar si el navegador bloquea autoplay */ }
             }
           }
           // Recargar lista completa

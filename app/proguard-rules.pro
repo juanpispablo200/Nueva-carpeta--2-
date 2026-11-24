@@ -108,3 +108,6 @@
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
+
+# -- Crashlytics: conservar excepciones propias para reportes legibles
+-keep public class * extends java.lang.Exception

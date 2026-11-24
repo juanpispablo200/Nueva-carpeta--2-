@@ -133,10 +133,15 @@ fun OrderTrackingScreen(
                         plate   = courierPlate   ?: ""
                     ) else current.courier
 
+                fun field(name: String) = update.record[name]?.toString()?.trim('"')?.takeIf { it != "null" }
                 liveOrder = current.copy(
                     statusStep    = newStep,
                     timelineItems = buildTimeline(newStatus),
-                    courier       = courierInfo
+                    courier       = courierInfo,
+                    rawStatus     = newStatus,
+                    paymentStatus = field("payment_status") ?: current.paymentStatus,
+                    prescriptionStatus = field("prescription_status") ?: current.prescriptionStatus,
+                    cancelReason  = field("cancel_reason") ?: current.cancelReason
                 )
 
                 // Disparar calificación cuando se entrega el pedido
@@ -278,7 +283,7 @@ fun OrderTrackingScreen(
                                 color = JagooTextPrimary
                             )
                             Text(
-                                text = "Pedido #${order.id} · ${order.items.size} platos",
+                                text = "Pedido ${com.jagoo.app.data.orderNumber(order.id)} · ${order.items.size} productos",
                                 fontFamily = PoppinsFontFamily,
                                 fontSize = 12.sp,
                                 color = Color.Gray
@@ -321,21 +326,9 @@ fun OrderTrackingScreen(
                         }
                     }
 
-                    // Estado en texto según statusStep
-                    val statusLabel = when (order.statusStep) {
-                        OrderStatusStep.CONFIRMED  -> "Confirmado"
-                        OrderStatusStep.PREPARING  -> "En preparación"
-                        OrderStatusStep.READY      -> "Listo para recoger"
-                        OrderStatusStep.IN_TRANSIT -> "En camino"
-                        OrderStatusStep.DELIVERED  -> "Entregado"
-                    }
-                    val statusDesc = when (order.statusStep) {
-                        OrderStatusStep.CONFIRMED  -> "El restaurante confirmó tu pedido"
-                        OrderStatusStep.PREPARING  -> "Tu pedido se está preparando"
-                        OrderStatusStep.READY      -> "Esperando que el repartidor recoja"
-                        OrderStatusStep.IN_TRANSIT -> "El repartidor está en camino"
-                        OrderStatusStep.DELIVERED  -> "¡Tu pedido fue entregado!"
-                    }
+                    // Estado en texto según el estado real, pago y receta
+                    val statusLabel = com.jagoo.app.data.OrderStatusText.label(order)
+                    val statusDesc  = com.jagoo.app.data.OrderStatusText.description(order)
 
                     Card(
                         shape = RoundedCornerShape(18.dp),

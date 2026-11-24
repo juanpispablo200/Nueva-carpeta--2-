@@ -6,6 +6,13 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.jagoo.app.data.ActiveOrder
+import com.jagoo.app.data.AgeRules
+import com.jagoo.app.data.ImageCompressor
+import com.jagoo.app.data.OrderError
+import com.jagoo.app.data.OrderErrors
+import com.jagoo.app.data.remote.DeliveryZoneDto
+import com.jagoo.app.data.remote.buildTimeline
+import com.jagoo.app.data.remote.parseIsoMillis
 import com.jagoo.app.data.CartItem
 import com.jagoo.app.data.Dish
 import com.jagoo.app.data.OrderStatusStep
@@ -15,9 +22,12 @@ import com.jagoo.app.data.SelectedOption
 import com.jagoo.app.data.remote.SupabaseClient
 import com.jagoo.app.data.repository.LocalJagooRepository
 import com.jagoo.app.data.repository.SupabaseJagooRepository
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -26,13 +36,16 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import java.time.LocalDate
+import java.util.UUID
 
 data class CartConflict(
     val newDish: Dish,
     val newRestaurantName: String,
     val currentRestaurantName: String,
     val selectedOptions: List<SelectedOption> = emptyList(),
-    val specialInstructions: String = ""
+    val specialInstructions: String = "",
+    val quantity: Int = 1
 )
 
 /** Respuesta de la RPC validate_coupon */
@@ -103,11 +116,70 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
     val currentRestaurantName: String?
         get() = _cartItems.value.firstOrNull()?.restaurantName
 
+    /**
+     * Costo de envío estimado: el de la zona elegida; si no hay zonas
+     * configuradas, la tarifa por defecto de ajustes. El total definitivo lo
+     * calcula el servidor al crear el pedido.
+     */
     val deliveryFee: Double
-        get() {
-            val restId = currentRestaurantId ?: return 1.50
-            return RestaurantData.restaurants.find { it.id == restId }?.deliveryFee ?: 1.50
+        get() = _selectedZone.value?.fee ?: _defaultFee.value
+
+    // ── Zonas de envío y pedido mínimo (configurados por el admin) ────────────
+    private val _zones = MutableStateFlow<List<DeliveryZoneDto>>(emptyList())
+    val zones: StateFlow<List<DeliveryZoneDto>> = _zones.asStateFlow()
+
+    private val _selectedZone = MutableStateFlow<DeliveryZoneDto?>(null)
+    val selectedZone: StateFlow<DeliveryZoneDto?> = _selectedZone.asStateFlow()
+
+    private val _defaultFee = MutableStateFlow(0.0)
+
+    private val _minOrder = MutableStateFlow(0.0)
+    val minOrder: StateFlow<Double> = _minOrder.asStateFlow()
+
+    private val _configLoading = MutableStateFlow(false)
+    val configLoading: StateFlow<Boolean> = _configLoading.asStateFlow()
+
+    fun selectZone(zone: DeliveryZoneDto) { _selectedZone.value = zone }
+
+    /** Carga zonas, tarifa por defecto y pedido mínimo al entrar al checkout. */
+    fun loadCheckoutConfig() {
+        viewModelScope.launch {
+            _configLoading.value = true
+            try {
+                val supabase = SupabaseClient.client
+                val zones = withTimeout(12_000L) {
+                    supabase.from("delivery_zones")
+                        .select { filter { eq("is_active", true) } }
+                        .decodeList<DeliveryZoneDto>()
+                        .sortedBy { it.sortOrder }
+                }
+                _zones.value = zones
+                if (_selectedZone.value == null || zones.none { it.id == _selectedZone.value?.id }) {
+                    _selectedZone.value = zones.singleOrNull()
+                }
+
+                val feeRows = withTimeout(12_000L) {
+                    supabase.from("settings")
+                        .select { filter { eq("key", "default_delivery_fee") } }
+                        .decodeList<CartSettingRow>()
+                }
+                _defaultFee.value = feeRows.firstOrNull()?.value?.toDoubleOrNull() ?: 0.0
+
+                currentRestaurantId?.let { restId ->
+                    val min = withTimeout(12_000L) {
+                        supabase.postgrest.rpc("get_effective_min_order", buildJsonObject {
+                            put("p_restaurant_id", restId)
+                        }).decodeAs<Double>()
+                    }
+                    _minOrder.value = min
+                }
+            } catch (_: Exception) {
+                // Sin conexión: el servidor igual valida zona, mínimo y total al confirmar
+            } finally {
+                _configLoading.value = false
+            }
         }
+    }
 
     fun getSubtotal() = _cartItems.value.sumOf { it.totalPrice }
 
@@ -120,29 +192,125 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
         _cartItems.value.filter { it.dish.id == dishId }.sumOf { it.quantity }
 
     // ── Carrito: agregar, quitar, vaciar ──────────────────────────────────────
+    // ── Edad (licorería) ──────────────────────────────────────────────────────
+    private val _ageStatus = MutableStateFlow(AgeStatus.UNKNOWN)
+    val ageStatus: StateFlow<AgeStatus> = _ageStatus.asStateFlow()
+
+    private val _ageGate = MutableStateFlow<AgeGateRequest?>(null)
+    val ageGate: StateFlow<AgeGateRequest?> = _ageGate.asStateFlow()
+
+    private val _ageSaving = MutableStateFlow(false)
+    val ageSaving: StateFlow<Boolean> = _ageSaving.asStateFlow()
+
+    private val _ageError = MutableStateFlow<String?>(null)
+    val ageError: StateFlow<String?> = _ageError.asStateFlow()
+
+    /** Agrega al carrito. Un solo negocio por pedido; los productos +18 piden la fecha de nacimiento. */
     fun addToCart(
         dish: Dish,
         selectedOptions: List<SelectedOption> = emptyList(),
-        specialInstructions: String = ""
+        specialInstructions: String = "",
+        quantity: Int = 1
+    ) {
+        if (dish.isAgeRestricted && _ageStatus.value != AgeStatus.ADULT) {
+            requestAgeGate(AgeGateRequest(dish, selectedOptions, specialInstructions, quantity))
+            return
+        }
+        addAfterAgeCheck(dish, selectedOptions, specialInstructions, quantity)
+    }
+
+    private fun addAfterAgeCheck(
+        dish: Dish,
+        selectedOptions: List<SelectedOption>,
+        specialInstructions: String,
+        quantity: Int = 1
     ) {
         val currentRestId = currentRestaurantId
         if (currentRestId != null && currentRestId != dish.restaurantId) {
             _cartConflict.value = CartConflict(
                 newDish               = dish,
                 newRestaurantName     = dish.restaurantName,
-                currentRestaurantName = currentRestaurantName ?: "otro restaurante",
+                currentRestaurantName = currentRestaurantName ?: "otro negocio",
                 selectedOptions       = selectedOptions,
-                specialInstructions   = specialInstructions
+                specialInstructions   = specialInstructions,
+                quantity              = quantity
             )
             return
         }
-        addDishDirectly(dish, selectedOptions, specialInstructions)
+        addDishDirectly(dish, selectedOptions, specialInstructions, quantity)
+    }
+
+    private fun requestAgeGate(request: AgeGateRequest) {
+        viewModelScope.launch {
+            if (_ageStatus.value == AgeStatus.UNKNOWN) loadAgeStatus()
+            when (_ageStatus.value) {
+                AgeStatus.ADULT -> addAfterAgeCheck(request.dish, request.selectedOptions, request.specialInstructions, request.quantity)
+                AgeStatus.MINOR -> _ageGate.value = request.copy(minor = true)
+                else            -> _ageGate.value = request
+            }
+        }
+    }
+
+    private suspend fun loadAgeStatus() {
+        try {
+            val uid = SupabaseClient.client.auth.currentUserOrNull()?.id ?: return
+            val row = withTimeout(10_000L) {
+                SupabaseClient.client.from("profiles")
+                    .select { filter { eq("id", uid) } }
+                    .decodeSingle<BirthDateRow>()
+            }
+            val birth = row.birthDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+            _ageStatus.value = when {
+                birth == null              -> AgeStatus.MISSING
+                AgeRules.isAdult(birth)    -> AgeStatus.ADULT
+                else                       -> AgeStatus.MINOR
+            }
+        } catch (_: Exception) {
+            _ageStatus.value = AgeStatus.MISSING
+        }
+    }
+
+    /** Guarda la fecha de nacimiento UNA vez (el servidor no deja cambiarla después). */
+    fun submitBirthDate(day: String, month: String, year: String) {
+        val request = _ageGate.value ?: return
+        val birth = AgeRules.parseBirthDate(day, month, year)
+        if (birth == null) {
+            _ageError.value = "Escribe una fecha real: día, mes y año de nacimiento."
+            return
+        }
+        viewModelScope.launch {
+            _ageSaving.value = true
+            _ageError.value = null
+            try {
+                val adult = withTimeout(12_000L) {
+                    SupabaseClient.client.postgrest
+                        .rpc("set_birth_date", buildJsonObject { put("p_birth", birth.toString()) })
+                        .decodeAs<Boolean>()
+                }
+                _ageStatus.value = if (adult) AgeStatus.ADULT else AgeStatus.MINOR
+                if (adult) {
+                    _ageGate.value = null
+                    addAfterAgeCheck(request.dish, request.selectedOptions, request.specialInstructions, request.quantity)
+                } else {
+                    _ageGate.value = request.copy(minor = true)
+                }
+            } catch (e: Exception) {
+                _ageError.value = "No se pudo guardar la fecha. Revisa tu conexión e intenta de nuevo."
+            } finally {
+                _ageSaving.value = false
+            }
+        }
+    }
+
+    fun dismissAgeGate() {
+        _ageGate.value = null
+        _ageError.value = null
     }
 
     fun confirmClearCartAndAddPending() {
         val conflict = _cartConflict.value ?: return
         _cartItems.value = emptyList()
-        addDishDirectly(conflict.newDish, conflict.selectedOptions, conflict.specialInstructions)
+        addDishDirectly(conflict.newDish, conflict.selectedOptions, conflict.specialInstructions, conflict.quantity)
         _cartConflict.value = null
     }
 
@@ -151,7 +319,8 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
     private fun addDishDirectly(
         dish: Dish,
         selectedOptions: List<SelectedOption>,
-        specialInstructions: String
+        specialInstructions: String,
+        quantity: Int = 1
     ) {
         _cartItems.update { items ->
             val existingIndex = items.indexOfFirst {
@@ -159,14 +328,14 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
             }
             if (existingIndex >= 0) {
                 items.mapIndexed { index, item ->
-                    if (index == existingIndex) item.copy(quantity = item.quantity + 1) else item
+                    if (index == existingIndex) item.copy(quantity = item.quantity + quantity) else item
                 }
             } else {
                 items + CartItem(
                     dish                = dish,
                     restaurantId        = dish.restaurantId,
                     restaurantName      = dish.restaurantName,
-                    quantity            = 1,
+                    quantity            = quantity,
                     selectedOptions     = selectedOptions,
                     specialInstructions = specialInstructions
                 )
@@ -242,107 +411,148 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
         _couponError.value     = null
     }
 
-    // ── Confirmar pedido — guarda en Supabase + local ─────────────────────────
-    fun confirmOrder() {
+    // ── Receta (farmacia) ─────────────────────────────────────────────────────
+    private val _prescriptionUri = MutableStateFlow<Uri?>(null)
+    val prescriptionUri: StateFlow<Uri?> = _prescriptionUri.asStateFlow()
+
+    fun setPrescriptionUri(uri: Uri?) { _prescriptionUri.value = uri }
+
+    /** El carrito tiene productos que exigen receta (los de venta libre no). */
+    val cartRequiresPrescription: Boolean
+        get() = _cartItems.value.any { it.dish.requiresPrescription }
+
+    val cartHasAgeRestricted: Boolean
+        get() = _cartItems.value.any { it.dish.isAgeRestricted }
+
+    // ── Crear pedido ──────────────────────────────────────────────────────────
+    private val _orderState = MutableStateFlow<OrderPlacement>(OrderPlacement.Idle)
+    val orderState: StateFlow<OrderPlacement> = _orderState.asStateFlow()
+
+    fun resetOrderState() { _orderState.value = OrderPlacement.Idle }
+
+    /**
+     * Crea el pedido en el servidor y usa el uuid REAL que devuelve en toda la app.
+     * paymentMethod: "cash" o "transfer". cashTendered: con cuánto paga (solo efectivo).
+     */
+    fun placeOrder(paymentMethod: String, cashTendered: Double?) {
+        if (_orderState.value is OrderPlacement.Loading) return
         val items = _cartItems.value
-        if (items.isEmpty()) return
-
-        val restId   = currentRestaurantId ?: return
-        val restName = currentRestaurantName ?: "Restaurante"
-        val restLogo = RestaurantData.restaurants.find { it.id == restId }?.logoUrl ?: ""
-        val subtotal = getSubtotal()
-        val fee      = deliveryFee
-        val discount = _couponDiscount.value
-        val total    = getTotal()
-        val orderId  = "JG-${(1000..9999).random()}"
-        val address  = _deliveryAddress.value.ifBlank { "Sin dirección" }
-
-        val timeline = listOf(
-            OrderTimelineItem(
-                title       = "Pedido confirmado",
-                time        = java.time.LocalTime.now()
-                    .let { "%02d:%02d".format(it.hour, it.minute) },
-                step        = OrderStatusStep.CONFIRMED,
-                isCompleted = true,
-                isCurrent   = false
-            ),
-            OrderTimelineItem(
-                title       = "En preparación en cocina",
-                time        = "",
-                step        = OrderStatusStep.PREPARING,
-                isCompleted = false,
-                isCurrent   = true
-            ),
-            OrderTimelineItem(
-                title       = "Repartidor en camino",
-                time        = "",
-                step        = OrderStatusStep.IN_TRANSIT,
-                isCompleted = false,
-                isCurrent   = false
-            ),
-            OrderTimelineItem(
-                title       = "Entrega estimada",
-                time        = "~30 min",
-                step        = OrderStatusStep.DELIVERED,
-                isCompleted = false,
-                isCurrent   = false
-            )
-        )
-
-        val newOrder = ActiveOrder(
-            id                = orderId,
-            restaurantId      = restId,
-            restaurantName    = restName,
-            restaurantLogoUrl = restLogo,
-            items             = items,
-            subtotal          = subtotal,
-            deliveryFee       = fee,
-            total             = total,
-            estimatedMinutes  = 25,
-            statusStep        = OrderStatusStep.PREPARING,
-            timelineItems     = timeline,
-            courier           = null   // se asigna cuando el restaurante ponga status=ready
-        )
-
-        _activeOrder.value = newOrder
-
-        // Guardar en Supabase (en segundo plano) y también localmente
-        viewModelScope.launch {
-            supabaseRepo.saveOrderSuspend(
-                order           = newOrder,
-                cartItems       = items,
-                deliveryAddress = address
-            )
-            // Si había cupón aplicado, incrementar su uso en backend
-            if (_couponApplied.value && validatedCoupon != null) {
-                try {
-                    val supabase = SupabaseClient.client
-                    supabase.postgrest.rpc("apply_coupon", buildJsonObject {
-                        put("p_code", validatedCoupon!!.code)
-                        put("p_order_id", orderId)
-                    })
-                } catch (_: Exception) { /* No bloquear el pedido si falla */ }
-            }
-            // Refrescar historial desde Supabase
-            refreshOrderHistory()
+        val restId = currentRestaurantId
+        if (items.isEmpty() || restId == null) {
+            _orderState.value = OrderPlacement.Failed(OrderErrors.fromThrowable(IllegalStateException("CARRITO_VACIO")))
+            return
         }
+        val restName = currentRestaurantName ?: "Negocio"
+        val restaurant = RestaurantData.restaurants.find { it.id == restId }
+        val address = _deliveryAddress.value.ifBlank { "Sin dirección" }
+        val coupon = if (_couponApplied.value) validatedCoupon?.code else null
+        val zoneId = _selectedZone.value?.id
 
-        _cartItems.value       = emptyList()
-        _couponApplied.value   = false
-        _couponCode.value      = ""
-        _couponDiscount.value  = 0.0
-        _deliveryAddress.value = ""
-        validatedCoupon        = null
+        viewModelScope.launch {
+            _orderState.value = OrderPlacement.Loading
+            var uploadedRxPath: String? = null
+            val supabase = SupabaseClient.client
+            try {
+                // 1. Receta: se sube antes (la ruta debe empezar con <uid>/)
+                if (items.any { it.dish.requiresPrescription }) {
+                    val uri = _prescriptionUri.value
+                        ?: throw IllegalStateException("RECETA_REQUERIDA")
+                    val uid = supabase.auth.currentUserOrNull()?.id
+                        ?: throw IllegalStateException("NO_AUTENTICADO")
+                    val bytes = ImageCompressor.compressToJpeg(getApplication(), uri)
+                    val path = "$uid/${UUID.randomUUID()}.jpg"
+                    withTimeout(60_000L) { supabase.storage["prescriptions"].upload(path, bytes) }
+                    uploadedRxPath = path
+                }
+
+                // 2. Pedido en el servidor
+                val res = withTimeout(30_000L) {
+                    supabaseRepo.createOrderSuspend(
+                        restaurantId     = restId,
+                        items            = items,
+                        deliveryAddress  = address,
+                        zoneId           = zoneId,
+                        paymentMethod    = paymentMethod,
+                        cashTendered     = if (paymentMethod == "cash") cashTendered else null,
+                        couponCode       = coupon,
+                        prescriptionPath = uploadedRxPath
+                    )
+                }
+
+                val newOrder = ActiveOrder(
+                    id                = res.orderId,
+                    restaurantId      = restId,
+                    restaurantName    = restName,
+                    restaurantLogoUrl = restaurant?.logoUrl ?: "",
+                    items             = items,
+                    subtotal          = res.subtotal,
+                    deliveryFee       = res.deliveryFee,
+                    total             = res.total,
+                    estimatedMinutes  = 25,
+                    statusStep        = OrderStatusStep.CONFIRMED,
+                    timelineItems     = buildTimeline("pending"),
+                    courier           = null,
+                    rawStatus         = "pending",
+                    paymentMethod     = paymentMethod,
+                    changeDue         = res.changeDue,
+                    transferDeadlineMillis = parseIsoMillis(res.transferDeadline),
+                    ageCheckRequired  = res.ageCheckRequired,
+                    prescriptionRequired = res.prescriptionRequired,
+                    prescriptionStatus   = if (res.prescriptionRequired) "pending" else "none"
+                )
+                _activeOrder.value = newOrder
+                localRepo.saveOrder(newOrder)
+
+                _cartItems.value       = emptyList()
+                _couponApplied.value   = false
+                _couponCode.value      = ""
+                _couponDiscount.value  = 0.0
+                _deliveryAddress.value = ""
+                _prescriptionUri.value = null
+                validatedCoupon        = null
+
+                _orderState.value = OrderPlacement.Placed(newOrder)
+                refreshOrderHistory()
+            } catch (e: Exception) {
+                // Si el pedido falló, no dejamos la receta huérfana en Storage
+                uploadedRxPath?.let { path ->
+                    try { supabase.storage["prescriptions"].delete(path) } catch (_: Exception) {}
+                }
+                _orderState.value = OrderPlacement.Failed(OrderErrors.fromThrowable(e))
+            }
+        }
     }
 
     // ── Historial ─────────────────────────────────────────────────────────────
+    private val _historyLoading = MutableStateFlow(false)
+    val historyLoading: StateFlow<Boolean> = _historyLoading.asStateFlow()
+
+    private val _historyError = MutableStateFlow<String?>(null)
+    val historyError: StateFlow<String?> = _historyError.asStateFlow()
+
     fun refreshOrderHistory() {
         viewModelScope.launch {
-            _orderHistory.value = supabaseRepo.getOrderHistorySuspend()
+            _historyLoading.value = true
+            _historyError.value   = null
+            try {
+                val result = supabaseRepo.getOrderHistorySuspend()
+                _orderHistory.value = result
+            } catch (e: Exception) {
+                _historyError.value = "No se pudo cargar el historial. Verifica tu conexión."
+                // Mantiene datos locales como fallback
+            } finally {
+                _historyLoading.value = false
+            }
         }
     }
 
-    // ── Pagos — subir comprobante a Supabase Storage ─────────────────────────
+    // ── Transferencia: subir comprobante (obligatorio) ───────────────────────
+    /**
+     * Comprime la foto y la sube al bucket privado payment-proofs en <uid>/…;
+     * luego registra el comprobante (RPC upload_payment_proof). El pedido pasa a
+     * "verifying" y el admin lo revisa. Sin comprobante a tiempo, el servidor
+     * cancela el pedido.
+     */
     fun uploadPaymentProof(
         orderId: String,
         imageUri: Uri,
@@ -355,36 +565,67 @@ class CartViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val supabase = SupabaseClient.client
+                val uid = supabase.auth.currentUserOrNull()?.id
+                    ?: throw IllegalStateException("NO_AUTENTICADO")
 
-                // 1. Leer bytes de la imagen desde la Uri del dispositivo
-                val bytes = context.contentResolver
-                    .openInputStream(imageUri)
-                    ?.use { it.readBytes() }
-                    ?: throw Exception("No se pudo leer la imagen")
+                val bytes = ImageCompressor.compressToJpeg(context, imageUri)
+                val path = "$uid/${orderId}_${System.currentTimeMillis()}.jpg"
+                withTimeout(60_000L) { supabase.storage["payment-proofs"].upload(path, bytes) }
 
-                // 2. Subir a Supabase Storage bucket "payment-proofs"
-                val fileName = "proof_${orderId}_${System.currentTimeMillis()}.jpg"
-                supabase.storage["payment-proofs"].upload(
-                    path = fileName,
-                    data = bytes
-                )
+                withTimeout(30_000L) {
+                    supabase.postgrest.rpc("upload_payment_proof", buildJsonObject {
+                        put("p_order_id", orderId)
+                        put("p_image_url", path)          // ruta del archivo en el bucket privado
+                        put("p_reference_number", referenceNumber)
+                        put("p_amount", amount)
+                    })
+                }
 
-                // 3. Obtener URL pública del archivo
-                val imageUrl = supabase.storage["payment-proofs"].publicUrl(fileName)
-
-                // 4. Registrar el comprobante en la BD via RPC
-                supabase.postgrest.rpc("upload_payment_proof", buildJsonObject {
-                    put("p_order_id", orderId)
-                    put("p_image_url", imageUrl)
-                    if (referenceNumber != null) put("p_reference_number", referenceNumber)
-                    put("p_amount", amount)
-                })
-
+                _activeOrder.value = _activeOrder.value?.takeIf { it.id == orderId }
+                    ?.copy(paymentStatus = "verifying") ?: _activeOrder.value
                 onSuccess()
             } catch (e: Exception) {
-                onError(e.message ?: "Error al subir el comprobante")
+                onError(proofErrorMessage(e))
             }
         }
     }
 
+    private fun proofErrorMessage(e: Exception): String {
+        val raw = e.message.orEmpty()
+        return when {
+            raw.contains("PEDIDO_NO_PAGABLE") ||
+            raw.contains("PEDIDO_CANCELADO")  -> "Este pedido ya fue cancelado. Haz uno nuevo."
+            raw.contains("COMPROBANTE_YA_ENVIADO") -> "Ya enviaste un comprobante. Espera la verificación."
+            e is kotlinx.coroutines.TimeoutCancellationException ||
+            raw.contains("timeout", true) || raw.contains("unable to resolve", true) ->
+                "Conexión lenta o sin internet. Intenta de nuevo."
+            else -> "No se pudo enviar el comprobante. Intenta de nuevo."
+        }
+    }
+
 }
+
+/** Estado de la creación del pedido. */
+sealed class OrderPlacement {
+    object Idle : OrderPlacement()
+    object Loading : OrderPlacement()
+    data class Placed(val order: ActiveOrder) : OrderPlacement()
+    data class Failed(val error: OrderError) : OrderPlacement()
+}
+
+enum class AgeStatus { UNKNOWN, MISSING, ADULT, MINOR }
+
+/** Producto +18 que espera la confirmación de edad. */
+data class AgeGateRequest(
+    val dish: Dish,
+    val selectedOptions: List<SelectedOption> = emptyList(),
+    val specialInstructions: String = "",
+    val quantity: Int = 1,
+    val minor: Boolean = false
+)
+
+@Serializable
+private data class CartSettingRow(val key: String = "", val value: String = "")
+
+@Serializable
+private data class BirthDateRow(@SerialName("birth_date") val birthDate: String? = null)

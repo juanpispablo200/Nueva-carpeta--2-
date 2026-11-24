@@ -16,6 +16,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -90,6 +97,9 @@ fun DriverRepartidorScreen(
             },
             onCambiarEstado = { nuevoStatus ->
                 repartidorViewModel.cambiarEstado(pedido.id, nuevoStatus)
+            },
+            onConfirmarEdad = {
+                repartidorViewModel.confirmarEdad(pedido.id)
                 pedidoDetalle = null
             },
             onBack = { pedidoDetalle = null }
@@ -132,10 +142,10 @@ fun DriverRepartidorScreen(
                         modifier = Modifier.height(24.dp)
                     )
                     Spacer(Modifier.width(8.dp))
-                    IconButton(onClick = onNavigateToGanancias, modifier = Modifier.size(32.dp)) {
+                    IconButton(onClick = onNavigateToGanancias, modifier = Modifier.size(48.dp)) {
                         Icon(Icons.Default.Payments, "Ganancias", tint = JagooGreen)
                     }
-                    IconButton(onClick = onLogout, modifier = Modifier.size(32.dp)) {
+                    IconButton(onClick = onLogout, modifier = Modifier.size(48.dp)) {
                         Icon(Icons.AutoMirrored.Filled.ExitToApp, "Cerrar sesión", tint = JagooGreen)
                     }
                 }
@@ -303,6 +313,7 @@ private fun DriverDetalleScreen(
     isMyOrder: Boolean,
     onAceptar: () -> Unit,
     onCambiarEstado: (String) -> Unit,
+    onConfirmarEdad: () -> Unit = {},
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -334,7 +345,7 @@ private fun DriverDetalleScreen(
             modifier = Modifier.fillMaxWidth().background(JagooYellow).padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack, modifier = Modifier.size(36.dp).clip(CircleShape).background(Color.White)) {
+            IconButton(onClick = onBack, modifier = Modifier.size(48.dp).clip(CircleShape).background(Color.White)) {
                 Icon(Icons.Default.ArrowBack, "Volver", tint = JagooGreen, modifier = Modifier.size(20.dp))
             }
             Spacer(Modifier.width(10.dp))
@@ -353,7 +364,7 @@ private fun DriverDetalleScreen(
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             InfoRow(Icons.Default.Restaurant, "Restaurante", pedido.restaurantName)
                             pedido.restaurantPhone?.let { phone ->
-                                IconButton(onClick = { llamarTelefono(phone) }, modifier = Modifier.size(36.dp).clip(CircleShape).background(JagooYellow.copy(alpha = 0.4f))) {
+                                IconButton(onClick = { llamarTelefono(phone) }, modifier = Modifier.size(48.dp).clip(CircleShape).background(JagooYellow.copy(alpha = 0.4f))) {
                                     Icon(Icons.Default.Phone, "Llamar restaurante", tint = JagooGreen, modifier = Modifier.size(18.dp))
                                 }
                             }
@@ -364,7 +375,7 @@ private fun DriverDetalleScreen(
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             InfoRow(Icons.Default.Person, "Cliente", pedido.customerName ?: "Cliente Jagoo")
                             pedido.customerPhone?.let { phone ->
-                                IconButton(onClick = { llamarTelefono(phone) }, modifier = Modifier.size(36.dp).clip(CircleShape).background(JagooYellow.copy(alpha = 0.4f))) {
+                                IconButton(onClick = { llamarTelefono(phone) }, modifier = Modifier.size(48.dp).clip(CircleShape).background(JagooYellow.copy(alpha = 0.4f))) {
                                     Icon(Icons.Default.Phone, "Llamar cliente", tint = JagooGreen, modifier = Modifier.size(18.dp))
                                 }
                             }
@@ -380,7 +391,7 @@ private fun DriverDetalleScreen(
                                     shape = CircleShape,
                                     colors = ButtonDefaults.buttonColors(containerColor = JagooGreen),
                                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                    modifier = Modifier.height(34.dp)
+                                    modifier = Modifier.height(48.dp)
                                 ) {
                                     Icon(Icons.Default.Map, null, tint = Color.White, modifier = Modifier.size(14.dp))
                                     Spacer(Modifier.width(4.dp))
@@ -411,10 +422,47 @@ private fun DriverDetalleScreen(
                         Text("Aceptar pedido", fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = JagooGreen)
                     }
                 } else if (isMyOrder) {
+                    if (pedido.ageCheckRequired) {
+                        val verified = pedido.ageVerifiedAt != null
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = if (verified) Color(0xFFE8F5E9) else Color(0xFFFFF3E0)),
+                            modifier = Modifier.fillMaxWidth().semantics {
+                                liveRegion = LiveRegionMode.Polite
+                                contentDescription = if (verified) "Edad verificada" else "Alerta: verificar la cédula del cliente al entregar"
+                            }
+                        ) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text(
+                                    if (verified) "✅ Cédula verificada" else "⚠️ Verificar cédula al entregar",
+                                    fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp
+                                )
+                                if (!verified) {
+                                    Text("Este pedido tiene productos solo para mayores de 18. No lo entregues sin ver la cédula.", fontFamily = PoppinsFontFamily, fontSize = 12.sp)
+                                    Spacer(Modifier.height(8.dp))
+                                    Button(
+                                        onClick = onConfirmarEdad,
+                                        shape = CircleShape,
+                                        colors = ButtonDefaults.buttonColors(containerColor = JagooGreen),
+                                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                    ) { Text("Ya verifiqué la cédula", color = Color.White, fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold) }
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    if (pedido.paymentMethod == "cash") {
+                        Text(
+                            "💵 Cobrar en efectivo: $${String.format("%.2f", pedido.total)}" +
+                                (pedido.changeDue?.let { " · Cambio a devolver: $${String.format("%.2f", it)}" } ?: ""),
+                            fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = JagooGreen
+                        )
+                        Spacer(Modifier.height(8.dp))
+                    }
                     val (nextStatus, nextLabel) = nextAction(pedido.status)
                     if (nextStatus != null) {
                         Button(
                             onClick = { onCambiarEstado(nextStatus) },
+                            enabled = !(nextStatus == "delivered" && pedido.ageCheckRequired && pedido.ageVerifiedAt == null),
                             shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(containerColor = JagooYellow),
                             modifier = Modifier.fillMaxWidth().height(52.dp)

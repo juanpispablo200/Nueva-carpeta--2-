@@ -206,13 +206,26 @@ fun RegisterScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(JagooSpacing.md))
+            Text(
+                text = "Al crear tu cuenta aceptas los Términos y la Política de privacidad.",
+                fontFamily = PoppinsFontFamily,
+                fontSize = 11.sp,
+                color = JagooTextMuted,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = JagooSpacing.sm)
+            )
+            com.jagoo.app.ui.components.LegalLinks()
+
+            Spacer(modifier = Modifier.height(JagooSpacing.sm))
 
             // ── Botón Crear cuenta ────────────────────────────────────────
             Button(
                 onClick = {
-                    // Si hay error previo, limpiarlo antes de reintentar
                     if (state is AuthState.Error) authViewModel.clearError()
+                    if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                        authViewModel.setValidationError("Ingresa un email válido")
+                        return@Button
+                    }
                     authViewModel.register()
                 },
                 enabled = state !is AuthState.Loading,

@@ -16,7 +16,9 @@ data class Restaurant(
     val brandColorHex: String = "#FFD600",
     val isFeatured: Boolean = false,
     val isOffer: Boolean = false,
-    val offerText: String? = null
+    val offerText: String? = null,
+    val businessType: String = BusinessType.RESTAURANTE.key,
+    val isActive: Boolean = true
 )
 
 data class DishOption(
@@ -46,7 +48,11 @@ data class Dish(
     val isAvailable: Boolean = true,
     val isPopular: Boolean = false,
     val isOffer: Boolean = false,
-    val offerBadge: String? = null
+    val offerBadge: String? = null,
+    /** Producto solo para mayores de 18 (licorería). */
+    val isAgeRestricted: Boolean = false,
+    /** Producto de farmacia que exige receta; si es false, es de venta libre. */
+    val requiresPrescription: Boolean = false
 )
 
 data class SelectedOption(
@@ -115,5 +121,31 @@ data class ActiveOrder(
     val estimatedMinutes: Int,
     val statusStep: OrderStatusStep,
     val timelineItems: List<OrderTimelineItem>,
-    val courier: CourierInfo? = null          // null hasta que se asigne repartidor
+    val courier: CourierInfo? = null,         // null hasta que se asigne repartidor
+    val rawStatus: String = "pending",
+    val paymentMethod: String = "cash",
+    val paymentStatus: String = "pending",
+    val changeDue: Double? = null,
+    val transferDeadlineMillis: Long? = null,
+    val cancelReason: String? = null,
+    val ageCheckRequired: Boolean = false,
+    val prescriptionRequired: Boolean = false,
+    val prescriptionStatus: String = "none"
 )
+
+/** Tipos de negocio (valores del enum business_type en la base de datos). */
+enum class BusinessType(val key: String, val label: String, val emoji: String, val colorHex: String) {
+    RESTAURANTE("restaurante", "Restaurantes", "🍽️", "#FFE082"),
+    TIENDA("tienda", "Tiendas", "🛒", "#C8E6C9"),
+    FARMACIA("farmacia", "Farmacias", "💊", "#BBDEFB"),
+    LICORERIA("licoreria", "Licorerías", "🍷", "#E1BEE7");
+
+    companion object {
+        fun fromKey(key: String?): BusinessType =
+            entries.firstOrNull { it.key == key } ?: RESTAURANTE
+    }
+}
+
+/** Número corto y legible del pedido (el id real es un uuid). */
+fun orderNumber(id: String): String =
+    if (id.startsWith("JG-")) id else "JG-" + id.replace("-", "").take(6).uppercase()

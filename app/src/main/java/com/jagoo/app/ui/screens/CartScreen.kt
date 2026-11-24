@@ -63,7 +63,6 @@ fun CartScreen(
     onContinueClick: () -> Unit
 ) {
     val cartItems by cartViewModel.cartItems.collectAsState()
-    val cartConflict by cartViewModel.cartConflict.collectAsState()
 
     val restaurantName = cartViewModel.currentRestaurantName ?: "Restaurante"
     val subtotal = cartViewModel.getSubtotal()
@@ -284,53 +283,6 @@ fun CartScreen(
         }
     }
 
-    cartConflict?.let { conflict ->
-        AlertDialog(
-            onDismissRequest = { cartViewModel.dismissConflictDialog() },
-            title = {
-                Text(
-                    text = "¿Crear nuevo pedido?",
-                    fontFamily = PoppinsFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = JagooTextPrimary
-                )
-            },
-            text = {
-                Text(
-                    text = "Tu carrito contiene productos de '${conflict.currentRestaurantName}'. ¿Deseas vaciarlo para agregar de '${conflict.newRestaurantName}'?",
-                    fontFamily = PoppinsFontFamily,
-                    fontSize = 14.sp,
-                    color = JagooTextPrimary
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = { cartViewModel.confirmClearCartAndAddPending() },
-                    colors = ButtonDefaults.buttonColors(containerColor = JagooRed),
-                    shape = PillShape
-                ) {
-                    Text(
-                        text = "Vaciar e Iniciar",
-                        fontFamily = PoppinsFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { cartViewModel.dismissConflictDialog() }
-                ) {
-                    Text(
-                        text = "Cancelar",
-                        fontFamily = PoppinsFontFamily,
-                        color = JagooGreen
-                    )
-                }
-            }
-        )
-    }
 }
 
 @Composable

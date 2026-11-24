@@ -17,6 +17,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.jagoo.app.ui.components.BusinessTypeTiles
 import com.jagoo.app.ui.components.CategoryItem
 import com.jagoo.app.ui.components.JagooHeader
 import com.jagoo.app.ui.components.PromoBanner
@@ -48,7 +54,8 @@ fun HomeScreen(
     onNavigateToCategory: (String) -> Unit
 ) {
     val categories by productViewModel.categories.collectAsState()
-    val restaurants by productViewModel.restaurants.collectAsState()
+    val restaurants by productViewModel.visibleRestaurants.collectAsState()
+    val selectedType by productViewModel.selectedType.collectAsState()
     val searchQuery by productViewModel.searchQuery.collectAsState()
     val selectedCategory by productViewModel.selectedCategory.collectAsState()
     val addresses by productViewModel.addresses.collectAsState()
@@ -105,7 +112,10 @@ fun HomeScreen(
         // Indicador de carga inicial
         if (isLoading && restaurants.isEmpty()) {
             androidx.compose.foundation.layout.Box(
-                modifier = androidx.compose.ui.Modifier.fillMaxWidth().padding(32.dp),
+                modifier = androidx.compose.ui.Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp)
+                    .semantics { contentDescription = "Cargando restaurantes" },
                 contentAlignment = Alignment.Center
             ) {
                 androidx.compose.material3.CircularProgressIndicator(color = com.jagoo.app.ui.theme.JagooGreen)
@@ -126,34 +136,60 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Categorías de comida (Hamburguesas, Pizza, Café, Sushi, etc.)
+            // Tipos de negocio: restaurantes, tiendas, farmacias, licorerías
             Text(
-                text = "Categorías",
+                text = "¿Qué necesitas?",
                 fontFamily = PoppinsFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
                 color = JagooTextPrimary,
-                modifier = Modifier.padding(horizontal = JagooSpacing.md)
+                modifier = Modifier
+                    .padding(horizontal = JagooSpacing.md)
+                    .semantics { heading() }
             )
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = JagooSpacing.md),
-                horizontalArrangement = Arrangement.spacedBy(JagooSpacing.sm),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(categories) { category ->
-                    CategoryItem(
-                        category = category,
-                        isSelected = selectedCategory == category.name,
-                        onClick = {
-                            productViewModel.selectCategory(category.name)
-                            onNavigateToCategory(category.name)
-                        }
-                    )
+            BusinessTypeTiles(
+                selectedType = selectedType,
+                onSelect = { productViewModel.selectType(it) }
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Categorías de comida: solo aplican a restaurantes
+            if (selectedType == null || selectedType == "restaurante") {    
+                Text(
+                    text = "Categorías",
+                    fontFamily = PoppinsFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = JagooTextPrimary,
+                    modifier = Modifier
+                        .padding(horizontal = JagooSpacing.md)
+                        .semantics { heading() }
+                )
+    
+                Spacer(modifier = Modifier.height(10.dp))
+    
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = JagooSpacing.md),
+                    horizontalArrangement = Arrangement.spacedBy(JagooSpacing.sm),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(categories) { category ->
+                        CategoryItem(
+                            category = category,
+                            isSelected = selectedCategory == category.name,
+                            onClick = {
+                                productViewModel.selectCategory(category.name)
+                                onNavigateToCategory(category.name)
+                            }
+                        )
+                    }
                 }
-            }
+    
+                }
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -170,7 +206,8 @@ fun HomeScreen(
                     fontFamily = PoppinsFontFamily,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
-                    color = JagooTextPrimary
+                    color = JagooTextPrimary,
+                    modifier = Modifier.semantics { heading() }
                 )
             }
 
@@ -201,11 +238,12 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Restaurantes cerca de ti",
+                    text = (com.jagoo.app.data.BusinessType.entries.firstOrNull { it.key == selectedType }?.label ?: "Negocios") + " cerca de ti",
                     fontFamily = PoppinsFontFamily,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
-                    color = JagooTextPrimary
+                    color = JagooTextPrimary,
+                    modifier = Modifier.semantics { heading() }
                 )
 
                 Text(
@@ -214,7 +252,11 @@ fun HomeScreen(
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp,
                     color = JagooGreen,
-                    modifier = Modifier.clickable { onNavigateToCategory("Todos") }
+                    modifier = Modifier
+                        .minimumInteractiveComponentSize()
+                        .clickable(role = Role.Button, onClickLabel = "Ver todos los restaurantes") {
+                            onNavigateToCategory("Todos")
+                        }
                 )
             }
 

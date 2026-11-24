@@ -8,8 +8,11 @@ plugins {
 }
 
 // Aplicar google-services solo si google-services.json está presente
+// Se aplican solo si google-services.json existe; sin él el proyecto compila igual
+// (Firebase queda sin inicializar y Crashlytics no reporta nada).
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
 }
 
 // Leer claves desde local.properties — nunca hardcodear secretos
@@ -24,6 +27,30 @@ val keystoreProps = Properties()
 val keystoreFile = rootProject.file("keystore.properties")
 if (keystoreFile.exists()) {
     keystoreFile.inputStream().use { keystoreProps.load(it) }
+}
+
+// Abortar bundleRelease/assembleRelease si falta o está incompleto keystore.properties
+gradle.taskGraph.whenReady {
+    val releaseRequested = allTasks.any {
+        it.project == project && (it.name == "bundleRelease" || it.name == "assembleRelease")
+    }
+    if (releaseRequested) {
+        val required = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+        val missing = required.filter { keystoreProps.getProperty(it).isNullOrBlank() }
+        if (!keystoreFile.exists() || missing.isNotEmpty()) {
+            throw GradleException(
+                "FIRMA RELEASE: falta keystore.properties en la raíz del proyecto " +
+                "o le faltan claves: ${if (keystoreFile.exists()) missing else required}. " +
+                "Copia keystore.properties.example como keystore.properties y complétalo."
+            )
+        }
+        if (!file(keystoreProps.getProperty("storeFile")).exists()) {
+            throw GradleException(
+                "FIRMA RELEASE: el archivo .jks indicado en storeFile no existe. " +
+                "Genéralo con keytool (ver keystore.properties.example)."
+            )
+        }
+    }
 }
 
 android {
@@ -45,6 +72,10 @@ android {
             "\"${localProps.getProperty("supabase.url", "")}\"")
         buildConfigField("String", "SUPABASE_ANON_KEY",
             "\"${localProps.getProperty("supabase.anon.key", "")}\"")
+        // URL pública del panel web (Términos, Privacidad, Eliminar cuenta). Sin barra final.
+        buildConfigField("String", "WEB_BASE_URL",
+            "\"${localProps.getProperty("web.base.url", "").trim().trimEnd('/')}\"")
+        manifestPlaceholders["crashlyticsEnabled"] = "true"
         manifestPlaceholders["MAPS_API_KEY"] =
             localProps.getProperty("maps.api.key", "")    }
 
@@ -73,6 +104,8 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            // Sin reportes de crash durante desarrollo
+            manifestPlaceholders["crashlyticsEnabled"] = "false"
         }
     }
 
@@ -93,6 +126,7 @@ android {
 }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -122,6 +156,7 @@ dependencies {
     // Firebase — notificaciones push FCM
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+    implementation(libs.firebase.crashlytics)
 
     // Google Maps — tracking en tiempo real
     implementation(libs.maps.compose)

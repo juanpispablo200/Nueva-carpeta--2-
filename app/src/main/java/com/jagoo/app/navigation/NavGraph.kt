@@ -12,7 +12,6 @@ import com.jagoo.app.ui.screens.CartScreen
 import com.jagoo.app.ui.screens.CategoryScreen
 import com.jagoo.app.ui.screens.CheckoutScreen
 import com.jagoo.app.ui.screens.HomeScreen
-import com.jagoo.app.ui.screens.KushkiPaymentScreen
 import com.jagoo.app.ui.screens.LoginScreen
 import com.jagoo.app.ui.screens.OrderHistoryScreen
 import com.jagoo.app.ui.screens.OrderTrackingScreen
@@ -24,7 +23,6 @@ import com.jagoo.app.ui.screens.RestaurantDetailScreen
 import com.jagoo.app.ui.screens.SearchScreen
 import com.jagoo.app.viewmodel.AuthViewModel
 import com.jagoo.app.viewmodel.CartViewModel
-import com.jagoo.app.viewmodel.KushkiViewModel
 import com.jagoo.app.viewmodel.ProductViewModel
 import com.jagoo.app.viewmodel.RatingViewModel
 import com.jagoo.app.viewmodel.SettingsViewModel
@@ -36,7 +34,6 @@ fun NavGraph(
     productViewModel: ProductViewModel,
     cartViewModel: CartViewModel,
     settingsViewModel: SettingsViewModel,
-    kushkiViewModel: KushkiViewModel,
     ratingViewModel: RatingViewModel,
     startDestination: String,
     modifier: Modifier = Modifier
@@ -138,19 +135,15 @@ fun NavGraph(
                 cartViewModel    = cartViewModel,
                 productViewModel = productViewModel,
                 onBackClick      = { navController.popBackStack() },
-                onOrderConfirmed = { orderId, total ->
-                    navController.navigate(Screen.PaymentInstructions.createRoute(orderId, total)) {
-                        popUpTo(Screen.Home.route) { inclusive = false }
-                    }
-                },
-                onPayWithCard = { orderId, total ->
-                    navController.navigate(Screen.KushkiPayment.createRoute(orderId, total)) {
+                onOrderPlaced    = { orderId, total, isTransfer ->
+                    val target = if (isTransfer) Screen.PaymentInstructions.createRoute(orderId, total)
+                                 else Screen.Orders.route
+                    navController.navigate(target) {
                         popUpTo(Screen.Home.route) { inclusive = false }
                     }
                 }
             )
         }
-
         composable(
             route     = Screen.PaymentInstructions.route,
             arguments = listOf(
@@ -170,29 +163,6 @@ fun NavGraph(
                         popUpTo(Screen.Home.route) { inclusive = false }
                     }
                 }
-            )
-        }
-
-        composable(
-            route     = Screen.KushkiPayment.route,
-            arguments = listOf(
-                navArgument("orderId") { type = NavType.StringType },
-                navArgument("total")   { type = NavType.StringType }
-            )
-        ) { back ->
-            val orderId = back.arguments?.getString("orderId") ?: ""
-            val total   = back.arguments?.getString("total")?.toDoubleOrNull() ?: 0.0
-            KushkiPaymentScreen(
-                cartViewModel    = cartViewModel,
-                kushkiViewModel  = kushkiViewModel,
-                orderId          = orderId,
-                totalAmount      = total,
-                onPaymentSuccess = {
-                    navController.navigate(Screen.Orders.route) {
-                        popUpTo(Screen.Home.route) { inclusive = false }
-                    }
-                },
-                onBackClick = { navController.popBackStack() }
             )
         }
 
@@ -244,6 +214,11 @@ fun NavGraph(
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
                     }
+                },
+                onAccountDeleted      = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
             )
         }
@@ -251,7 +226,12 @@ fun NavGraph(
         composable(Screen.OrderHistory.route) {
             OrderHistoryScreen(
                 cartViewModel = cartViewModel,
-                onBackClick   = { navController.popBackStack() }
+                onBackClick   = { navController.popBackStack() },
+                onReorder     = { restaurantId ->
+                    navController.navigate(Screen.RestaurantDetail.createRoute(restaurantId)) {
+                        popUpTo(Screen.Home.route) { inclusive = false }
+                    }
+                }
             )
         }
 

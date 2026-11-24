@@ -15,6 +15,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -25,9 +27,9 @@ import com.jagoo.app.notifications.JagooNotificationManager
 import com.jagoo.app.ui.components.JagooBottomBar
 import com.jagoo.app.ui.theme.JagooTheme
 import com.jagoo.app.viewmodel.AuthState
+import com.jagoo.app.ui.components.CartDialogs
 import com.jagoo.app.viewmodel.AuthViewModel
 import com.jagoo.app.viewmodel.CartViewModel
-import com.jagoo.app.viewmodel.KushkiViewModel
 import com.jagoo.app.viewmodel.ProductViewModel
 import com.jagoo.app.viewmodel.RatingViewModel
 import com.jagoo.app.viewmodel.SettingsViewModel
@@ -38,7 +40,6 @@ class MainActivity : ComponentActivity() {
     private val productViewModel:  ProductViewModel  by viewModels()
     private val cartViewModel:     CartViewModel     by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
-    private val kushkiViewModel:   KushkiViewModel   by viewModels()
     private val ratingViewModel:   RatingViewModel   by viewModels()
 
     // Solicitar permiso de notificaciones en Android 13+
@@ -46,15 +47,14 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { /* Silencioso — el usuario puede denegarlas */ }
 
+    private var pendingOrderId by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         JagooNotificationManager.createChannels(this)
         requestNotificationPermissionIfNeeded()
 
-        // Deep link desde notificación: jagoo://order/{orderId}
-        val deepLinkOrderId = intent?.data?.let { uri ->
-            if (uri.scheme == "jagoo" && uri.host == "order") uri.lastPathSegment else null
-        }
+        pendingOrderId = extractOrderId(intent)
 
         setContent {
             JagooTheme {
@@ -75,12 +75,13 @@ class MainActivity : ComponentActivity() {
                     else                  -> Screen.Login.route
                 }
 
-                // Si hay deep link de pedido, navegar directo al tracking
-                LaunchedEffect(authState, deepLinkOrderId) {
-                    if (authState is AuthState.Customer && deepLinkOrderId != null) {
+                // Si hay pedido pendiente (toque en notificación o deep link), ir al tracking
+                LaunchedEffect(authState, pendingOrderId) {
+                    if (authState is AuthState.Customer && pendingOrderId != null) {
                         navController.navigate(Screen.Orders.route) {
                             popUpTo(Screen.Home.route) { inclusive = false }
                         }
+                        pendingOrderId = null
                     }
                 }
 
@@ -95,7 +96,6 @@ class MainActivity : ComponentActivity() {
                     Screen.OrderHistory.route,
                     Screen.Addresses.route,
                     Screen.PaymentInstructions.route,
-                    Screen.KushkiPayment.route,
                     Screen.Rating.route,
                     Screen.Checkout.route
                 )
@@ -130,14 +130,31 @@ class MainActivity : ComponentActivity() {
                         productViewModel  = productViewModel,
                         cartViewModel     = cartViewModel,
                         settingsViewModel = settingsViewModel,
-                        kushkiViewModel   = kushkiViewModel,
                         ratingViewModel   = ratingViewModel,
                         startDestination  = startDestination,
                         modifier          = Modifier.padding(innerPadding)
                     )
+                    // Avisos de "un pedido por negocio" y de edad (+18) desde cualquier pantalla
+                    CartDialogs(cartViewModel)
                 }
             }
         }
+    }
+
+    // Llega cuando la app ya está abierta y el usuario toca la notificación
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingOrderId = extractOrderId(intent)
+    }
+
+    // Soporta el extra de la notificación push y el deep link jagoo://order/{orderId}
+    private fun extractOrderId(intent: Intent?): String? {
+        intent ?: return null
+        intent.getStringExtra("navigate_to_order")?.takeIf { it.isNotBlank() }?.let { return it }
+        intent.getStringExtra("order_id")?.takeIf { it.isNotBlank() }?.let { return it }
+        val uri = intent.data ?: return null
+        return if (uri.scheme == "jagoo" && uri.host == "order") uri.lastPathSegment else null
     }
 
     override fun onResume() {

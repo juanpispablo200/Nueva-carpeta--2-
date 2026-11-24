@@ -17,14 +17,16 @@ fun RestaurantDto.toRestaurant(): Restaurant = Restaurant(
     logoUrl       = logoUrl, coverUrl = coverUrl, brandColorHex = brandColor,
     rating        = rating, reviewCount = reviewCount, deliveryTime = deliveryTime,
     deliveryFee   = deliveryFee, minOrder = minOrder, isOpen = isOpen,
-    isFeatured    = isFeatured, isOffer = isOffer, offerText = offerText
+    isFeatured    = isFeatured, isOffer = isOffer, offerText = offerText,
+    businessType  = businessType, isActive = isActive
 )
 
 fun DishDto.toDish(): Dish = Dish(
     id = id, restaurantId = restaurantId, restaurantName = restaurantName,
     menuSection = sectionName, name = name, description = description, price = price,
     imageUrl = imageUrl, isAvailable = isAvailable, isPopular = isPopular,
-    isOffer = isOffer, offerBadge = offerBadge, optionGroups = parseOptionGroups(optionGroupsJson)
+    isOffer = isOffer, offerBadge = offerBadge, optionGroups = parseOptionGroups(optionGroupsJson),
+    isAgeRestricted = isAgeRestricted, requiresPrescription = requiresPrescription
 )
 
 fun parseOptionGroups(json: String): List<DishOptionGroup> {
@@ -72,9 +74,23 @@ fun OrderDto.toActiveOrder(): ActiveOrder {
         estimatedMinutes  = 25,
         statusStep        = step,
         timelineItems     = buildTimeline(status),
-        courier           = courierName?.let { CourierInfo(name = it, vehicle = courierVehicle ?: "", plate = courierPlate ?: "") }
+        courier           = courierName?.let { CourierInfo(name = it, vehicle = courierVehicle ?: "", plate = courierPlate ?: "") },
+        rawStatus         = status,
+        paymentMethod     = paymentMethod,
+        paymentStatus     = paymentStatus,
+        changeDue         = changeDue,
+        transferDeadlineMillis = parseIsoMillis(transferDeadline),
+        cancelReason      = cancelReason,
+        ageCheckRequired  = ageCheckRequired,
+        prescriptionRequired = prescriptionRequired,
+        prescriptionStatus   = prescriptionStatus
     )
 }
+
+/** Fecha ISO-8601 de Postgres (con zona) → milisegundos; null si no se puede leer. */
+fun parseIsoMillis(value: String?): Long? =
+    if (value.isNullOrBlank()) null
+    else try { java.time.OffsetDateTime.parse(value).toInstant().toEpochMilli() } catch (_: Exception) { null }
 
 fun buildTimeline(status: String): List<OrderTimelineItem> {
     data class Step(val key: String, val label: String, val step: OrderStatusStep)

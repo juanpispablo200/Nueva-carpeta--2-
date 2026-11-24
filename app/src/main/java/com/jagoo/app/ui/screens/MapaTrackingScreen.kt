@@ -108,7 +108,6 @@ fun MapaTrackingScreen(
             }
         } catch (_: Exception) {}
         loading = false
-
         // Suscribirse a cambios en profiles del repartidor via Realtime
         // Escucha cambios en la tabla profiles filtrando por el courier del pedido
         val channel = supabase.realtime.channel("driver-location-$orderId")
@@ -180,12 +179,17 @@ fun MapaTrackingScreen(
             } else if (driverLatLng == null) {
                 Box(Modifier.fillMaxSize().background(Color.LightGray.copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center) {
-                    Text(
-                        "Ubicación del repartidor no disponible",
-                        fontFamily = PoppinsFontFamily,
-                        fontSize = 13.sp,
-                        color = JagooTextMuted
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🛵", fontSize = 36.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Esperando que el repartidor\nactive su GPS",
+                            fontFamily = PoppinsFontFamily,
+                            fontSize = 13.sp,
+                            color = JagooTextMuted,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
             } else {
                 GoogleMap(

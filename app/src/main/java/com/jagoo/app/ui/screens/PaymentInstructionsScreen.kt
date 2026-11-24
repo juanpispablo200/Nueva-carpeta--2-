@@ -170,12 +170,31 @@ fun PaymentInstructionsScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Pedido #$orderId",
+                        text = "Pedido ${com.jagoo.app.data.orderNumber(orderId)}",
                         fontFamily = PoppinsFontFamily,
                         fontSize = 12.sp,
                         color = Color.White.copy(alpha = 0.8f)
                     )
                 }
+            }
+
+            // Plazo para subir el comprobante (si no llega, el servidor cancela el pedido)
+            val deadlineMillis = cartViewModel.activeOrder.collectAsState().value
+                ?.takeIf { it.id == orderId }?.transferDeadlineMillis
+            val minutesLeft = rememberMinutesLeft(deadlineMillis)
+            val expired = deadlineMillis != null && minutesLeft <= 0L
+            if (expired) {
+                com.jagoo.app.ui.components.ErrorCard(
+                    message = "El plazo para subir el comprobante venció y el pedido se cancela. Si ya transferiste, escríbenos; si no, haz un pedido nuevo."
+                )
+            } else {
+                com.jagoo.app.ui.components.NoticeCard(
+                    label = "Plazo",
+                    message = if (deadlineMillis != null)
+                        "Te quedan $minutesLeft min para subir el comprobante. Si no lo subes a tiempo, el pedido se cancela."
+                    else
+                        "Sube el comprobante dentro de 30 minutos desde que hiciste el pedido. Si no, se cancela."
+                )
             }
 
             // Instrucciones
@@ -372,7 +391,7 @@ fun PaymentInstructionsScreen(
                 },
                 shape = PillShape,
                 colors = ButtonDefaults.buttonColors(containerColor = JagooGreen),
-                enabled = selectedImageUri != null && !uploading,
+                enabled = selectedImageUri != null && !uploading && !expired,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
@@ -397,6 +416,19 @@ fun PaymentInstructionsScreen(
             }
         }
     }
+}
+
+/** Minutos que faltan hasta el plazo; se refresca cada 20 s. */
+@Composable
+private fun rememberMinutesLeft(deadlineMillis: Long?): Long {
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    androidx.compose.runtime.LaunchedEffect(deadlineMillis) {
+        while (deadlineMillis != null) {
+            now = System.currentTimeMillis()
+            kotlinx.coroutines.delay(20_000L)
+        }
+    }
+    return com.jagoo.app.data.TransferRules.minutesLeft(deadlineMillis, now)
 }
 
 @Composable
@@ -427,7 +459,7 @@ private fun DataRow(label: String, value: String, clipboard: androidx.compose.ui
             onClick = {
                 clipboard.setText(AnnotatedString(value))
             },
-            modifier = Modifier.size(36.dp)
+            modifier = Modifier.size(48.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.ContentCopy,

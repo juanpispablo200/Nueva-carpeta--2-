@@ -25,6 +25,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -42,9 +43,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.jagoo.app.data.OrderStatusStep
 import com.jagoo.app.ui.theme.JagooBackground
 import com.jagoo.app.ui.theme.JagooCardWhite
 import com.jagoo.app.ui.theme.JagooGreen
+import com.jagoo.app.ui.theme.JagooRed
 import com.jagoo.app.ui.theme.JagooSpacing
 import com.jagoo.app.ui.theme.JagooTextMuted
 import com.jagoo.app.ui.theme.JagooTextPrimary
@@ -57,11 +60,13 @@ import com.jagoo.app.viewmodel.CartViewModel
 @Composable
 fun OrderHistoryScreen(
     cartViewModel: CartViewModel,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onReorder: (restaurantId: String) -> Unit = {}
 ) {
-    val history by cartViewModel.orderHistory.collectAsState()
+    val history        by cartViewModel.orderHistory.collectAsState()
+    val historyLoading by cartViewModel.historyLoading.collectAsState()
+    val historyError   by cartViewModel.historyError.collectAsState()
 
-    // Refrescar desde Supabase al entrar a la pantalla
     LaunchedEffect(Unit) {
         cartViewModel.refreshOrderHistory()
     }
@@ -81,178 +86,171 @@ fun OrderHistoryScreen(
         ) {
             IconButton(
                 onClick = onBackClick,
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color.White)
+                modifier = Modifier.size(48.dp).clip(CircleShape).background(Color.White)
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Regresar",
-                    tint = JagooGreen,
-                    modifier = Modifier.size(20.dp)
-                )
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Regresar",
+                    tint = JagooGreen, modifier = Modifier.size(20.dp))
             }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Icon(
-                imageVector = Icons.Default.History,
-                contentDescription = "Historial",
-                tint = JagooGreen,
-                modifier = Modifier.size(24.dp)
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Text(
-                text = "Historial de Pedidos",
-                fontFamily = PoppinsFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                color = JagooGreen
-            )
+            Spacer(Modifier.width(12.dp))
+            Icon(Icons.Default.History, "Historial",
+                tint = JagooGreen, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Historial de Pedidos",
+                fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold,
+                fontSize = 18.sp, color = JagooGreen)
         }
 
+        // Estado de carga
+        if (historyLoading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = JagooGreen)
+            }
+            return@Column
+        }
+
+        // Estado de error con retry
+        if (historyError != null) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(JagooSpacing.xl),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text("⚠️", fontSize = 40.sp)
+                Spacer(Modifier.height(12.dp))
+                Text(historyError!!, fontFamily = PoppinsFontFamily,
+                    fontSize = 15.sp, color = JagooTextMuted, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = { cartViewModel.refreshOrderHistory() },
+                    shape = PillShape,
+                    colors = ButtonDefaults.buttonColors(containerColor = JagooGreen)
+                ) {
+                    Text("Reintentar", color = Color.White,
+                        fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold)
+                }
+            }
+            return@Column
+        }
+
+        // Estado vacío
         if (history.isEmpty()) {
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(JagooSpacing.xl),
+                modifier = Modifier.fillMaxSize().padding(JagooSpacing.xl),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clip(CircleShape)
+                    modifier = Modifier.size(100.dp).clip(CircleShape)
                         .background(JagooYellow.copy(alpha = 0.2f))
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Restaurant,
-                        contentDescription = "Sin historial",
-                        tint = JagooGreen,
-                        modifier = Modifier.size(50.dp)
-                    )
+                    Icon(Icons.Default.Restaurant, "Sin historial",
+                        tint = JagooGreen, modifier = Modifier.size(50.dp))
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Aún no tienes pedidos anteriores",
-                    fontFamily = PoppinsFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = JagooTextPrimary,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Los pedidos realizados en tus restaurantes favoritos se guardarán aquí automáticamente.",
-                    fontFamily = PoppinsFontFamily,
-                    fontSize = 13.sp,
-                    color = JagooTextMuted,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 18.sp
-                )
+                Spacer(Modifier.height(16.dp))
+                Text("Aún no tienes pedidos anteriores",
+                    fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp, color = JagooTextPrimary, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(8.dp))
+                Text("Los pedidos realizados aparecerán aquí.",
+                    fontFamily = PoppinsFontFamily, fontSize = 13.sp,
+                    color = JagooTextMuted, textAlign = TextAlign.Center)
             }
-        } else {
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(history) { order ->
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = JagooCardWhite),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(14.dp)
+            return@Column
+        }
+
+        // Lista de pedidos
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            items(history, key = { it.id }) { order ->
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = JagooCardWhite),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    AsyncImage(
-                                        model = order.restaurantLogoUrl,
-                                        contentDescription = order.restaurantName,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
-                                    )
-
-                                    Spacer(modifier = Modifier.width(10.dp))
-
-                                    Column {
-                                        Text(
-                                            text = order.restaurantName,
-                                            fontFamily = PoppinsFontFamily,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 15.sp,
-                                            color = JagooTextPrimary
-                                        )
-                                        Text(
-                                            text = "Pedido #${order.id}",
-                                            fontFamily = PoppinsFontFamily,
-                                            fontSize = 11.sp,
-                                            color = JagooTextSecondary
-                                        )
-                                    }
-                                }
-
-                                Box(
-                                    modifier = Modifier
-                                        .clip(CircleShape)
-                                        .background(JagooGreen.copy(alpha = 0.15f))
-                                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                                ) {
-                                    Text(
-                                        text = "Confirmado",
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                AsyncImage(
+                                    model = order.restaurantLogoUrl,
+                                    contentDescription = order.restaurantName,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.size(40.dp).clip(CircleShape)
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Column {
+                                    Text(order.restaurantName,
                                         fontFamily = PoppinsFontFamily,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 10.sp,
-                                        color = JagooGreen
-                                    )
+                                        fontSize = 15.sp, color = JagooTextPrimary)
+                                    Text("Pedido ${com.jagoo.app.data.orderNumber(order.id)}",
+                                        fontFamily = PoppinsFontFamily,
+                                        fontSize = 11.sp, color = JagooTextSecondary)
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            // Badge con estado real del pedido
+                            val (badgeText, badgeColor) = when (order.statusStep) {
+                                OrderStatusStep.CONFIRMED  -> "Confirmado" to JagooGreen
+                                OrderStatusStep.PREPARING  -> "En cocina" to Color(0xFFE65100)
+                                OrderStatusStep.READY      -> "Listo" to Color(0xFF7B1FA2)
+                                OrderStatusStep.IN_TRANSIT -> "En camino" to Color(0xFF1565C0)
+                                OrderStatusStep.DELIVERED  -> "Entregado" to JagooGreen
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(badgeColor.copy(alpha = 0.12f))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
                             ) {
-                                Text(
-                                    text = "Total pagado: $${String.format("%.2f", order.total).replace('.', ',')}",
+                                Text(badgeText,
                                     fontFamily = PoppinsFontFamily,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = JagooGreen
-                                )
+                                    fontSize = 10.sp, color = badgeColor)
+                            }
+                        }
 
+                        Spacer(Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    "Total: $${String.format("%.2f", order.total).replace('.', ',')}",
+                                    fontFamily = PoppinsFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp, color = JagooGreen
+                                )
+                                Text(
+                                    "${order.items.size} plato${if (order.items.size != 1) "s" else ""}",
+                                    fontFamily = PoppinsFontFamily,
+                                    fontSize = 11.sp, color = JagooTextMuted
+                                )
+                            }
+
+                            // "Volver a Pedir" funcional — navega al restaurante
+                            if (order.statusStep == OrderStatusStep.DELIVERED) {
                                 Button(
-                                    onClick = { },
+                                    onClick = { onReorder(order.restaurantId) },
                                     shape = PillShape,
                                     colors = ButtonDefaults.buttonColors(containerColor = JagooYellow),
-                                    modifier = Modifier.height(34.dp)
+                                    modifier = Modifier.height(48.dp)
                                 ) {
-                                    Text(
-                                        text = "Volver a Pedir",
+                                    Text("Volver a Pedir",
                                         fontFamily = PoppinsFontFamily,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp,
-                                        color = JagooGreen
-                                    )
+                                        fontSize = 11.sp, color = JagooGreen)
                                 }
                             }
                         }

@@ -33,5 +33,10 @@ data class DriverOrderDto(
     val status: String                                        = "ready",
     @SerialName("courier_id") val courierId: String?          = null,
     @SerialName("created_at") val createdAt: String           = "",
-    val items: List<DriverOrderItemDto>                        = emptyList()
+    val items: List<DriverOrderItemDto>                        = emptyList(),
+    @SerialName("payment_method") val paymentMethod: String   = "cash",
+    @SerialName("cash_tendered") val cashTendered: Double?    = null,
+    @SerialName("change_due") val changeDue: Double?          = null,
+    @SerialName("age_check_required") val ageCheckRequired: Boolean = false,
+    @SerialName("age_verified_at") val ageVerifiedAt: String? = null
 )

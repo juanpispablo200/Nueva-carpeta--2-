@@ -100,3 +100,14 @@ Después de aplicar la migración V2, la tabla `settings` tiene estos valores po
 | `maintenance_mode` | `false` | Modo mantenimiento |
 | `global_schedule` | `08:00-22:00` | Horario global de operación |
 | `driver_fee_per_delivery` | `1.50` | Ganancia del repartidor por entrega ($) |
+
+## Migraciones 19 a 23 (Android listo para Play)
+| # | Archivo | Qué hace |
+|---|---|---|
+| 19 | `20240401000019_delete_account.sql` | Eliminación de cuenta de cliente (RPC solo `service_role`) |
+| 20 | `20240401000020_remove_kushki.sql` | Retira el pago con tarjeta. Pedidos históricos con tarjeta pasan a `transfer`; `kushki_transactions` queda como `card_payments_archive` (solo lectura admin) |
+| 21 | `20240401000021_business_types.sql` | Enum `business_type`, permiso, activo, marcas +18 y receta, `birth_date`, reparto y pedido mínimo por tipo, zonas de envío, RLS |
+| 22 | `20240401000022_orders_payments.sql` | `create_order()`, efectivo/transferencia, cancelación a los 30 min (pg_cron), receta, verificación de edad, efectivo del driver, RLS, notificaciones |
+| 23 | `20240401000023_data_retention.sql` | Retención automática (receta 30 d, comprobante 365 d, pedido 730 d, notificaciones 90 d) |
+
+Aplicar en orden. Guía completa: `docs/DESPLIEGUE_PAGOS.md`. Pruebas: `supabase/tests/01_pagos_y_pedidos.sql`.

@@ -25,6 +25,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
@@ -75,35 +80,50 @@ fun QuantitySelector(
         label = "decrease_tint"
     )
 
+    // La píldora visual mide 28/32dp; cada botón tiene un área táctil de 48x48dp.
+    val pillHeight = if (isCompact) 28.dp else 32.dp
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = Modifier
-            .height(if (isCompact) 28.dp else 32.dp)
-            .clip(CircleShape)
-            .background(JagooGreenLight)
-            .padding(horizontal = JagooSpacing.xs + 2.dp)  // 6dp: mantiene el tamaño original
+            .height(48.dp)
+            .drawBehind {
+                val h = pillHeight.toPx()
+                drawRoundRect(
+                    color = JagooGreenLight,
+                    topLeft = Offset(0f, (size.height - h) / 2f),
+                    size = Size(size.width, h),
+                    cornerRadius = CornerRadius(h / 2f, h / 2f)
+                )
+            }
     ) {
         // Botón decrementar (con feedback de color cuando va a eliminar)
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .scale(decreaseScale)
-                .size(if (isCompact) 20.dp else 24.dp)
+                .size(48.dp)
                 .clip(CircleShape)
-                .background(decreaseBg)
-                .clickable {
+                .clickable(role = Role.Button) {
                     decreasePressed = true
                     onDecrease()
                     decreasePressed = false
                 }
         ) {
-            Icon(
-                imageVector = Icons.Default.Remove,
-                contentDescription = "Disminuir",
-                tint = decreaseTint,
-                modifier = Modifier.size(if (isCompact) 14.dp else 16.dp)
-            )
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .scale(decreaseScale)
+                    .size(if (isCompact) 20.dp else 24.dp)
+                    .clip(CircleShape)
+                    .background(decreaseBg)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Remove,
+                    contentDescription = if (quantity <= 1) "Quitar del carrito" else "Disminuir cantidad",
+                    tint = decreaseTint,
+                    modifier = Modifier.size(if (isCompact) 14.dp else 16.dp)
+                )
+            }
         }
 
         Text(
@@ -112,29 +132,36 @@ fun QuantitySelector(
             fontWeight = FontWeight.Bold,
             fontSize = if (isCompact) 12.sp else 14.sp,
             color = JagooTextPrimary,
-            modifier = Modifier.padding(horizontal = JagooSpacing.sm)
+            modifier = Modifier.padding(horizontal = JagooSpacing.xs)
         )
 
         // Botón incrementar
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .scale(increaseScale)
-                .size(if (isCompact) 20.dp else 24.dp)
+                .size(48.dp)
                 .clip(CircleShape)
-                .background(JagooGreen)
-                .clickable {
+                .clickable(role = Role.Button) {
                     increasePressed = true
                     onIncrease()
                     increasePressed = false
                 }
         ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "Aumentar",
-                tint = Color.White,
-                modifier = Modifier.size(if (isCompact) 14.dp else 16.dp)
-            )
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .scale(increaseScale)
+                    .size(if (isCompact) 20.dp else 24.dp)
+                    .clip(CircleShape)
+                    .background(JagooGreen)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Aumentar cantidad",
+                    tint = Color.White,
+                    modifier = Modifier.size(if (isCompact) 14.dp else 16.dp)
+                )
+            }
         }
     }
 }

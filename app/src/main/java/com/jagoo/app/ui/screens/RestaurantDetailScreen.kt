@@ -27,10 +27,13 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -91,6 +94,7 @@ fun RestaurantDetailScreen(
 
     var selectedSection by remember { mutableStateOf("Todos") }
     var selectedDishForDetail by remember { mutableStateOf<Dish?>(null) }
+    var dishQuery by remember { mutableStateOf("") }
 
     if (restaurant == null) {
         Box(
@@ -104,10 +108,16 @@ fun RestaurantDetailScreen(
 
     val menuSections = listOf("Todos", "Populares") + dishes.map { it.menuSection }.distinct()
 
-    val filteredDishes = when (selectedSection) {
+    val sectionDishes = when (selectedSection) {
         "Todos" -> dishes
         "Populares" -> dishes.filter { it.isPopular }
         else -> dishes.filter { it.menuSection == selectedSection }
+    }
+
+    // Búsqueda dentro del negocio (nombre o descripción), sin distinguir tildes ni mayúsculas
+    val filteredDishes = if (dishQuery.isBlank()) sectionDishes else sectionDishes.filter {
+        it.name.contains(dishQuery.trim(), ignoreCase = true) ||
+        it.description.contains(dishQuery.trim(), ignoreCase = true)
     }
 
     Box(
@@ -143,7 +153,7 @@ fun RestaurantDetailScreen(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(12.dp)
-                        .size(38.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
                         .background(Color.White)
                 ) {
@@ -161,7 +171,7 @@ fun RestaurantDetailScreen(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(12.dp)
-                        .size(38.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
                         .background(Color.White)
                 ) {
@@ -294,6 +304,26 @@ fun RestaurantDetailScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
+            // Buscador dentro de este negocio
+            OutlinedTextField(
+                value = dishQuery,
+                onValueChange = { dishQuery = it },
+                label = { Text("Buscar en este negocio") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = JagooGreen) },
+                trailingIcon = {
+                    if (dishQuery.isNotEmpty()) {
+                        IconButton(onClick = { dishQuery = "" }, modifier = Modifier.size(48.dp)) {
+                            Icon(Icons.Default.Close, contentDescription = "Borrar búsqueda", tint = JagooGreen)
+                        }
+                    }
+                },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
             // Selector de secciones del menú en scroll horizontal
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
@@ -422,9 +452,7 @@ fun RestaurantDetailScreen(
             dish = dish,
             onDismiss = { selectedDishForDetail = null },
             onAddToCart = { selectedDish, options, notes, qty ->
-                repeat(qty) {
-                    cartViewModel.addToCart(selectedDish, options, notes)
-                }
+                cartViewModel.addToCart(selectedDish, options, notes, qty)
             }
         )
     }

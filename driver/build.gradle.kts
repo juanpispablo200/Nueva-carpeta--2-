@@ -7,8 +7,11 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+// Se aplican solo si google-services.json existe; sin él el proyecto compila igual
+// (Firebase queda sin inicializar y Crashlytics no reporta nada).
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
 }
 
 val localProps = Properties()
@@ -21,6 +24,30 @@ val keystoreProps = Properties()
 val keystoreDriverFile = rootProject.file("keystore.driver.properties")
 if (keystoreDriverFile.exists()) {
     keystoreDriverFile.inputStream().use { keystoreProps.load(it) }
+}
+
+// Abortar bundleRelease/assembleRelease si falta o está incompleto keystore.driver.properties
+gradle.taskGraph.whenReady {
+    val releaseRequested = allTasks.any {
+        it.project == project && (it.name == "bundleRelease" || it.name == "assembleRelease")
+    }
+    if (releaseRequested) {
+        val required = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+        val missing = required.filter { keystoreProps.getProperty(it).isNullOrBlank() }
+        if (!keystoreDriverFile.exists() || missing.isNotEmpty()) {
+            throw GradleException(
+                "FIRMA RELEASE (driver): falta keystore.driver.properties en la raíz del proyecto " +
+                "o le faltan claves: ${if (keystoreDriverFile.exists()) missing else required}. " +
+                "Copia keystore.driver.properties.example como keystore.driver.properties y complétalo."
+            )
+        }
+        if (!file(keystoreProps.getProperty("storeFile")).exists()) {
+            throw GradleException(
+                "FIRMA RELEASE (driver): el archivo .jks indicado en storeFile no existe. " +
+                "Genéralo con keytool (ver keystore.driver.properties.example)."
+            )
+        }
+    }
 }
 
 android {
@@ -36,6 +63,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+        manifestPlaceholders["crashlyticsEnabled"] = "true"
 
         buildConfigField("String", "SUPABASE_URL",
             "\"${localProps.getProperty("supabase.url", "")}\"")
@@ -55,6 +83,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Sin reportes de crash durante desarrollo
+            manifestPlaceholders["crashlyticsEnabled"] = "false"
+        }
         release {
             isMinifyEnabled   = true
             isShrinkResources = true
@@ -108,6 +140,7 @@ dependencies {
     // Firebase — notificaciones push FCM
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+    implementation(libs.firebase.crashlytics)
 
     // Google Maps — para ver posición del repartidor
     implementation(libs.maps.compose)

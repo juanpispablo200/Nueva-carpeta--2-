@@ -3,6 +3,7 @@ import { Clock, MapPin, ChevronDown, ChevronUp, CheckCircle, XCircle, Bike } fro
 import type { Order } from '../../lib/types'
 import { NEXT_STATUS } from '../../lib/types'
 import { StatusBadge } from '../ui'
+import PrescriptionReview from './PrescriptionReview'
 
 interface Props {
   order:     Order
@@ -106,6 +107,19 @@ export default function OrderCard({ order, onAdvance, onCancel }: Props) {
         </div>
       )}
 
+      {/* Receta (farmacia): sin receta aprobada el pedido no avanza */}
+      {order.prescription_required && order.prescription_status === 'pending' && (
+        <PrescriptionReview orderId={order.id} path={order.prescription_path ?? null} />
+      )}
+      {order.prescription_required && order.prescription_status === 'approved' && (
+        <p className="px-4 pb-2 text-xs font-semibold text-green-700" role="status">Receta aprobada</p>
+      )}
+      {order.age_check_required && (
+        <p className="px-4 pb-2 text-xs font-semibold text-amber-700">Incluye productos +18: el repartidor verificará la cédula.</p>
+      )}
+      {order.payment_method === 'cash' && order.change_due != null && (
+        <p className="px-4 pb-2 text-xs text-[var(--c-ink-muted)]">Efectivo: paga con ${(order.total + order.change_due).toFixed(2)} (cambio ${order.change_due.toFixed(2)})</p>
+      )}
       {/* Acciones */}
       {!done && (
         <div className="mt-1 flex gap-2 px-4 pb-4">

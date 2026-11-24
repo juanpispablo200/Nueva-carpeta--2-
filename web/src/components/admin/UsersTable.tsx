@@ -3,6 +3,7 @@ import { Search, Users } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import type { Profile } from '../../lib/types'
 import { StatusBadge, Skeleton, EmptyState, Input, SectionHeader } from '../ui'
+import { useToast } from '../common/ToastContext'
 
 const PAGE = 10
 
@@ -12,16 +13,37 @@ export default function UsersTable() {
   const [search,  setSearch]  = useState('')
   const [page,    setPage]    = useState(0)
   const [saving,  setSaving]  = useState<string | null>(null)
+  const toast = useToast()
 
-  useEffect(() => {
-    supabase.from('profiles').select('*').order('created_at', { ascending: false })
-      .then(({ data }) => { setUsers((data as Profile[]) ?? []); setLoading(false) })
-  }, [])
+  // Cargar perfiles directamente de la BD — cada fila tiene su propio full_name
+  function loadUsers() {
+    setLoading(true)
+    supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        setUsers((data as Profile[]) ?? [])
+        setLoading(false)
+      })
+  }
+
+  useEffect(() => { loadUsers() }, [])
 
   async function changeRole(id: string, role: Profile['role']) {
+    // No permitir que un admin se quite el rol a sí mismo
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user?.id === id && role !== 'admin') {
+      toast?.error?.('No puedes cambiar tu propio rol de admin')
+      return
+    }
     setSaving(id)
-    await supabase.from('profiles').update({ role }).eq('id', id)
-    setUsers(p => p.map(u => u.id === id ? { ...u, role } : u))
+    const { error } = await supabase.from('profiles').update({ role }).eq('id', id)
+    if (error) {
+      console.error('Error cambiando rol:', error.message)
+    } else {
+      setUsers(p => p.map(u => u.id === id ? { ...u, role } : u))
+    }
     setSaving(null)
   }
 
@@ -35,15 +57,25 @@ export default function UsersTable() {
   return (
     <div className="animate-in">
       <SectionHeader title={`Usuarios${users.length ? ` (${users.length})` : ''}`}>
-        <div className="relative w-full sm:w-64">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink-sub)]" />
-          <Input
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(0) }}
-            placeholder="Buscar por nombre…"
-            aria-label="Buscar usuarios por nombre"
-            className="pl-8"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative w-full sm:w-64">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink-sub)]" />
+            <Input
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(0) }}
+              placeholder="Buscar por nombre…"
+              aria-label="Buscar usuarios por nombre"
+              className="pl-8"
+            />
+          </div>
+          <button
+            onClick={loadUsers}
+            className="btn-ghost px-3 py-2 text-xs"
+            title="Recargar lista"
+            aria-label="Recargar lista de usuarios"
+          >
+            ↺
+          </button>
         </div>
       </SectionHeader>
 

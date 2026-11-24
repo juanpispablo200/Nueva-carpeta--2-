@@ -25,6 +25,9 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -82,15 +85,14 @@ fun JagooHeader(
                     modifier = Modifier.weight(1f, fill = false)
                 ) {
                     if (showBackButton) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Regresar",
-                            tint = JagooGreen,
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clickable { onBackClick() }
-                        )
-                        Spacer(modifier = Modifier.width(JagooSpacing.sm))
+                        IconButton(onClick = onBackClick) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Regresar",
+                                tint = JagooGreen,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
 
                     // Logo de marca Jagoo
@@ -99,7 +101,7 @@ fun JagooHeader(
                     ) {
                         Icon(
                             imageVector = Icons.Default.LocalShipping,
-                            contentDescription = "Jagoo Logo",
+                            contentDescription = null,
                             tint = JagooGreen,
                             modifier = Modifier.size(20.dp)
                         )
@@ -139,7 +141,7 @@ fun JagooHeader(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.LocationOn,
-                                contentDescription = "Ubicación",
+                                contentDescription = null,
                                 tint = JagooGreen,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -177,7 +179,7 @@ fun JagooHeader(
                     ) {
                         Icon(
                             imageVector = Icons.Default.AccessTime,
-                            contentDescription = "Tiempo",
+                            contentDescription = null,
                             tint = JagooGreen,
                             modifier = Modifier.size(14.dp)
                         )
@@ -198,6 +200,7 @@ fun JagooHeader(
                 BasicTextField(
                     value = searchQuery,
                     onValueChange = onSearchQueryChange,
+                    modifier = Modifier.semantics { contentDescription = placeholderText },
                     singleLine = true,
                     cursorBrush = SolidColor(JagooGreen),
                     textStyle = TextStyle(
@@ -213,7 +216,7 @@ fun JagooHeader(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(44.dp)
+                                .height(48.dp)
                                 .clip(CircleShape)
                                 .background(Color.White)
                                 .padding(horizontal = 14.dp),
@@ -221,7 +224,7 @@ fun JagooHeader(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Search,
-                                contentDescription = "Buscar",
+                                contentDescription = null,
                                 tint = Color.Gray,
                                 modifier = Modifier.size(20.dp)
                             )

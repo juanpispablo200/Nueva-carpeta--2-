@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.jagoo.app-mergeDebugResources-65:/values-v30/values-v30.xml",
+            "outputFile": "com.jagoo.app-mergeDebugResources-68:/values-v30/values-v30.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Juan Pablo\\.gradle\\caches\\8.10.2\\transforms\\d356d6077b27968ecc1c40ff4d2f9720\\transformed\\material3-release\\res\\values-v30\\values-v30.xml",
+                    "source": "C:\\Users\\Juan Pablo\\.gradle\\caches\\8.10.2\\transforms\\28e98b0edc9bf61b2ac2d9f3c048a25c\\transformed\\material3-release\\res\\values-v30\\values-v30.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",

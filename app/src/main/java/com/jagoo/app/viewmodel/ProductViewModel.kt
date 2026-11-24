@@ -8,6 +8,7 @@ import com.jagoo.app.data.Dish
 import com.jagoo.app.data.Restaurant
 import com.jagoo.app.data.RestaurantData
 import com.jagoo.app.data.remote.SupabaseClient
+import com.jagoo.app.data.remote.toRestaurant
 import com.jagoo.app.data.repository.AddressItem
 import com.jagoo.app.data.repository.LocalJagooRepository
 import com.jagoo.app.data.repository.SupabaseJagooRepository
@@ -17,6 +18,7 @@ import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -42,6 +44,20 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
     private val _selectedFilterChip = MutableStateFlow("Todos")
     val selectedFilterChip: StateFlow<String> = _selectedFilterChip.asStateFlow()
 
+    // Tipo de negocio (restaurante, tienda, farmacia, licoreria); null = todos
+    private val _selectedType = MutableStateFlow<String?>(null)
+    val selectedType: StateFlow<String?> = _selectedType.asStateFlow()
+
+    /** Negocios activos del tipo elegido. */
+    val visibleRestaurants: StateFlow<List<Restaurant>> =
+        kotlinx.coroutines.flow.combine(_restaurants, _selectedType) { list, type ->
+            list.filter { it.isActive && (type == null || it.businessType == type) }
+        }.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Eagerly, RestaurantData.restaurants)
+
+    fun selectType(key: String?) {
+        _selectedType.value = if (_selectedType.value == key) null else key
+        _selectedCategory.value = null
+    }
     private val _selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategory: StateFlow<String?> = _selectedCategory.asStateFlow()
 
@@ -82,21 +98,44 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /** true cuando la lista viene del servidor (no del ejemplo local). */
+    private var loadedFromServer = false
+
+    private val cachePrefs by lazy { getApplication<Application>().getSharedPreferences("jagoo_cache", android.content.Context.MODE_PRIVATE) }
+    private val cacheJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+
+    private fun saveRestaurantsCache(dtos: List<com.jagoo.app.data.remote.RestaurantDto>) {
+        try {
+            cachePrefs.edit().putString("restaurants", cacheJson.encodeToString(dtos)).apply()
+        } catch (_: Exception) { /* la caché es opcional */ }
+    }
+
+    private fun loadRestaurantsCache(): List<Restaurant>? = try {
+        cachePrefs.getString("restaurants", null)
+            ?.let { cacheJson.decodeFromString<List<com.jagoo.app.data.remote.RestaurantDto>>(it) }
+            ?.takeIf { it.isNotEmpty() }
+            ?.map { it.toRestaurant() }
+    } catch (_: Exception) { null }
+
     private fun loadRestaurantsFromSupabase() {
         viewModelScope.launch {
             _isLoading.value = true
             _loadError.value = null
             try {
-                val result = supabaseRepo.getRestaurantsSuspend()
-                if (result.isNotEmpty()) _restaurants.value = result
+                // Con internet lento no se queda cargando para siempre
+                val result = kotlinx.coroutines.withTimeout(15_000L) { supabaseRepo.getRestaurantsOrThrow() }
+                _restaurants.value = result
+                loadedFromServer = true
             } catch (e: Exception) {
-                _loadError.value = "Sin conexión. Usando datos locales."
+                _loadError.value =
+                    if (loadedFromServer) "Conexión lenta o sin internet. Mostrando la última lista que cargó."
+                    else "Sin conexión. Mostrando datos de ejemplo."
+                // Se conserva la última lista buena (o el ejemplo local si nunca cargó)
             } finally {
                 _isLoading.value = false
             }
         }
     }
-
     fun retryLoad() {
         loadRestaurantsFromSupabase()
         loadAddressesFromSupabase()
@@ -237,7 +276,7 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
         val filter = _selectedFilterChip.value
         val cat    = _selectedCategory.value
 
-        var list = _restaurants.value
+        var list = visibleRestaurants.value
 
         if (cat != null && cat != "Todas" && cat != "Todos") {
             list = list.filter {
