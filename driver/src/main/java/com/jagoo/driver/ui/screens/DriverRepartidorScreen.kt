@@ -133,7 +133,7 @@ fun DriverRepartidorScreen(
                     Text(
                         if (isAvailable) "Disponible" else "No disponible",
                         fontFamily = PoppinsFontFamily, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                        color = if (isAvailable) JagooGreen else Color.Gray
+                        color = if (isAvailable) JagooGreen else Color(0xFF5A5A5A)
                     )
                     Spacer(Modifier.width(6.dp))
                     Switch(
@@ -238,7 +238,7 @@ private fun NuevaOfertaModal(
                     Text("Zona: $it", fontFamily = PoppinsFontFamily, fontSize = 13.sp, color = JagooTextSecondary)
                 }
                 Text(gananciaTexto(pedido), fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = JagooGreen)
-                Text("La direcci?n se muestra al aceptar el pedido.", fontFamily = PoppinsFontFamily, fontSize = 11.sp, color = JagooTextSecondary)
+                Text("La dirección se muestra al aceptar el pedido.", fontFamily = PoppinsFontFamily, fontSize = 11.sp, color = JagooTextSecondary)
                 Spacer(Modifier.height(4.dp))
                 LinearProgressIndicator(
                     progress = { timeLeft / 30f },
@@ -246,7 +246,7 @@ private fun NuevaOfertaModal(
                     color = JagooGreen,
                     trackColor = Color.LightGray.copy(alpha = 0.4f)
                 )
-                Text("Tiempo restante: $timeLeft s", fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = Color.Gray, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                Text("Tiempo restante: $timeLeft s", fontFamily = PoppinsFontFamily, fontSize = 12.sp, color = Color(0xFF5A5A5A), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             }
         },
         confirmButton = {
@@ -260,7 +260,7 @@ private fun NuevaOfertaModal(
         },
         dismissButton = {
             TextButton(onClick = onRechazar) {
-                Text("Ignorar", fontFamily = PoppinsFontFamily, color = Color.Gray)
+                Text("Ignorar", fontFamily = PoppinsFontFamily, color = Color(0xFF5A5A5A))
             }
         }
     )
@@ -306,7 +306,7 @@ private fun DriverPedidoCard(pedido: DriverOrderDto, isMyOrder: Boolean, onClick
                     fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = JagooGreen
                 )
                 Spacer(Modifier.height(4.dp))
-                Icon(Icons.Default.ChevronRight, null, tint = Color.Gray, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.ChevronRight, null, tint = Color(0xFF5A5A5A), modifier = Modifier.size(18.dp))
             }
         }
     }

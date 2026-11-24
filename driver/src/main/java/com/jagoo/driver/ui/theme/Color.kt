@@ -19,7 +19,7 @@ val JagooRed = Color(0xFFD32F2F)
 
 val JagooTextPrimary = Color(0xFF1C211E)
 val JagooTextSecondary = Color(0xFF666666)
-val JagooTextMuted = Color(0xFF888888)
+val JagooTextMuted = Color(0xFF5A5A5A)
 
 val HeaderBottomShape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)
 val PillShape = CircleShape

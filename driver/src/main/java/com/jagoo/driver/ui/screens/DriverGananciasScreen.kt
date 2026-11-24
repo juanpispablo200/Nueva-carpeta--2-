@@ -271,7 +271,7 @@ fun DriverGananciasScreen(
                                     "Comisión",
                                     fontFamily = PoppinsFontFamily,
                                     fontSize = 10.sp,
-                                    color = Color.Gray
+                                    color = Color(0xFF5A5A5A)
                                 )
                             }
                         }
