@@ -10,6 +10,8 @@ minutos y la retención no correrán** (verás un NOTICE de aviso). Habilítala 
 ejecutar la migración 22 (y la 23): es idempotente.
 
 ## 2. Aplicar las migraciones, en orden
+Si tu base no tiene la tabla `ratings` (revisa con `select to_regclass('public.ratings')`), aplica primero `20240401000009_ratings.sql` (ya corregida: `restaurant_id` es `text`).
+
 SQL Editor → pegar y ejecutar, una por una: `…19`, `…20`, `…21`, `…22`, `…23`.
 Cada una termina con un bloque de verificación (`✅ … aplicada`). Si imprime `FALLA: …`, no sigas.
 

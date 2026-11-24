@@ -8,8 +8,8 @@ Categoría de partida en Play Console: **"Referencia, noticias o educación"** n
 | Violencia | No | Sin contenido violento |
 | Contenido sexual o desnudez | No | |
 | Lenguaje soez | No | |
-| Sustancias controladas (drogas, alcohol, tabaco) | **Sí: alcohol** (venta de bebidas alcohólicas en licorerías) | Marca "referencias o venta de alcohol". La app exige fecha de nacimiento ≥ 18 y el repartidor verifica la cédula. **[REVISAR LEGALMENTE]** |
-| Medicamentos | **Sí** (farmacias: medicamentos con receta y de venta libre) | Play pide declarar si la app vende o facilita medicamentos. Exige receta aprobada por la farmacia. **[REVISAR LEGALMENTE]**: puede exigir licencias o declaraciones adicionales |
+| Sustancias controladas (drogas, alcohol, tabaco) | **Sí: alcohol** (venta de bebidas alcohólicas en licorerías) | Marca "referencias o venta de alcohol". El cliente debe tener fecha de nacimiento ≥ 18, **confirmar la mayoría de edad (18+) en el checkout** (casilla obligatoria, validada también en el servidor) y el repartidor **verifica la cédula en la entrega** (sin esa verificación no puede entregar). **[REVISAR LEGALMENTE]** |
+| Medicamentos | **Sí, solo de venta libre, sin receta** | La categoría Medicamentos no vende ni entrega productos con receta; la app no pide ni guarda recetas. Play pide declarar si la app vende o facilita medicamentos. **[REVISAR LEGALMENTE]**: puede exigir licencias o declaraciones adicionales |
 | Juegos de azar o dinero simulado | No | |
 | Contenido generado por usuarios | **Sí** (calificaciones con comentarios) | `ratings`. Menciona que hay moderación posible (Términos, sección 8) |
 | Interacción entre usuarios | No hay chat entre usuarios. Los comentarios se ven en calificaciones | Confirma que no hay mensajería |
@@ -33,5 +33,7 @@ Resultado esperado: clasificación baja (PEGI 3 / Everyone / Todos), sujeta a lo
 ## Impacto de alcohol y medicamentos
 - La clasificación IARC subirá (esperable: PEGI 18 / Mayores de 18 en algunas regiones por la venta de alcohol). Si prefieres una clasificación baja, lanza primero **solo restaurantes y tiendas** y habilita licorerías después con otra ficha.
 - Play tiene políticas propias sobre alcohol y medicamentos: revisa "Política de contenido restringido" y la de "Salud" antes de enviar. Es posible que pidan documentación del negocio.
+- Alcohol: solo para mayores de 18, con confirmación en el checkout y verificación de cédula en la entrega.
+- Medicamentos: solo venta libre, sin receta.
 - Público objetivo: **18+** (no incluir menores de 13 evita Familias).
 - Pago: ya no hay tarjeta; solo efectivo y transferencia (bienes físicos, no usan Google Play Billing).

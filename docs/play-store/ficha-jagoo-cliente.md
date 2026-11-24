@@ -22,7 +22,7 @@ QUÉ PUEDES HACER
 • Consultar tu historial y repetir un pedido anterior con un toque.
 • Calificar negocios y entregas.
 • Productos para mayores de 18 años (licorería): se confirma tu edad y el repartidor verifica tu cédula al entregar.
-• Medicamentos con receta (farmacia): subes la foto de tu receta y la farmacia la aprueba antes de aceptar el pedido. Los de venta libre no la necesitan.
+• Medicamentos: solo productos de venta libre, sin receta médica.
 
 CONTROL DE TU CUENTA
 Puedes editar tus datos y eliminar tu cuenta cuando quieras desde Perfil → Eliminar mi cuenta.

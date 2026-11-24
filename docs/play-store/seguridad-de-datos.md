@@ -53,25 +53,24 @@ En Play Console deberás completar la **declaración de servicio en primer plano
 
 | Dato | ¿Se recopila? | ¿Se comparte? | Obligatorio | Finalidad | Evidencia |
 |---|---|---|---|---|---|
-| **Fecha de nacimiento** (Información personal → "Otra información") | Sí, solo si el cliente pide productos +18. Se guarda una vez | No (1) | Opcional | Funcionalidad (verificar mayoría de edad) | `CartViewModel.submitBirthDate` → RPC `set_birth_date` → `profiles.birth_date` |
-| **Foto de receta médica** (Fotos y videos; además "Salud" por su contenido) | Sí, solo si el cliente pide un medicamento con receta | Solo con el negocio del pedido y el administrador | Opcional | Funcionalidad | `CartViewModel.placeOrder` → bucket privado `prescriptions` |
-| Verificación de cédula al entregar | **No se guarda la cédula.** Solo se registra quién y cuándo confirmó (`age_verified_at/by`) | No | n/a | Funcionalidad | `confirm_age_verification` |
+| **Fecha de nacimiento** (Información personal → "Otra información") | Sí, solo si el cliente pide bebidas alcohólicas (+18). Se guarda una vez | No (1) | Opcional | Funcionalidad (verificar mayoría de edad) | `CartViewModel.submitBirthDate` → RPC `set_birth_date` → `profiles.birth_date` |
+| Confirmación de mayoría de edad en el checkout | Sí, casilla obligatoria "soy mayor de 18 años y mostraré mi cédula"; el servidor rechaza el pedido sin ella (`EDAD_NO_CONFIRMADA`) | No | Obligatorio para alcohol | Funcionalidad | `CheckoutScreen`, `create_order(p_age_confirmed)` |
+| Verificación de cédula al entregar | **No se guarda la cédula.** El repartidor la revisa en persona y solo se registra quién y cuándo confirmó (`age_verified_at/by`); sin esa confirmación no puede marcar el pedido como entregado | No | n/a | Funcionalidad | `confirm_age_verification` |
 | Información de pago con tarjeta | **Ya no existe.** Jagoo no procesa ni guarda datos de tarjeta | n/a | n/a | n/a | Flujo Kushki eliminado (migración 20) |
 
-**Declaración de la receta:** Play pregunta por datos de "Salud y estado físico". Una receta contiene
-datos de salud. Decláralos como **recopilados**, **no compartidos** con terceros (salvo el negocio que
-prepara el pedido, que es parte de la funcionalidad principal), finalidad "Funcionalidad", y eliminables
-al borrar la cuenta. **[REVISAR LEGALMENTE]** si requieren una política específica de datos de salud.
+**Medicamentos:** la categoría ofrece **solo productos de venta libre, sin receta**. La app y el panel no
+piden, suben ni guardan recetas ni datos de salud. No declares datos de "Salud y estado físico".
+**[REVISAR LEGALMENTE]** la venta de medicamentos de venta libre y de alcohol antes de publicar.
 
 **Retención** (coincide con la política de privacidad, sección 9; la ejecuta `run_data_retention()`):
-receta 30 días tras entregar/cancelar, comprobante 365 días, datos personales del pedido 730 días,
-notificaciones 90 días, ubicación del repartidor 24 horas.
+comprobante 365 días, datos personales del pedido 730 días, notificaciones 90 días,
+ubicación del repartidor 24 horas.
 
 **Eliminación de cuenta:** borra perfil (incluida la fecha de nacimiento), direcciones, favoritos,
-notificaciones, y los archivos de comprobantes y recetas; anonimiza los pedidos.
+notificaciones y los archivos de comprobantes; anonimiza los pedidos.
 
 **Estado de hallazgos anteriores**
 - A (tarjeta/Kushki): resuelto, el flujo se eliminó.
-- B (permisos de fotos): se mantiene `GetContent`, sin permisos de almacenamiento. La receta usa el mismo selector.
+- B (permisos de fotos): se mantiene `GetContent`, sin permisos de almacenamiento. Solo se usa para el comprobante de transferencia.
 - C (comprobantes en bucket público): resuelto. El bucket es privado, la app guarda la ruta (no una URL pública) y el panel pide URLs firmadas de 5 minutos.
 - D (retención sin proceso): resuelto con la migración 23. Requiere habilitar `pg_cron`.
